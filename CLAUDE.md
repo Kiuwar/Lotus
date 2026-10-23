@@ -5,7 +5,7 @@ Este arquivo é lido automaticamente pelo Claude Code em toda sessão. Ele é a
 
 ## O projeto
 
-Kiuwar Conversor: aplicativo Windows (Python + tkinter, empacotado com
+Lotus: aplicativo Windows (Python + tkinter, empacotado com
 PyInstaller) que converte arquivos **localmente**, sem internet.
 
 - `conversor/core/registry.py` — fonte única de verdade das conversões.
@@ -13,6 +13,10 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
 - `conversor/core/detect.py` — formato real pelo conteúdo, não pela extensão.
 - `conversor/core/validate.py` — reabre a saída antes de aceitar.
 - `conversor/converters/` — uma família de formatos por módulo.
+- `conversor/launcher.py` — entrada do Lotus.exe (janela, menu, reparo).
+- `conversor/shell.py` — menu do botão direito (registro, HKCU).
+- `conversor/menu.py` — janelas abertas pelo botão direito.
+- `conversor/diagnostics.py` — diagnóstico e reparo da instalação.
 - `docs/FORMATOS.md` — GERADO por `scripts/gerar_formatos.py`. Não editar à mão.
 - `docs/ANALISE.md` — por que o projeto é assim e como evitar erros de IA.
 
@@ -50,3 +54,12 @@ python -m conversor --listar
 9. **Separe fato de suposição** ao responder: o que foi testado aqui (Linux),
    o que só o CI no Windows confirma, e o que é opinião.
 10. Mensagens ao usuário em português do Brasil.
+11. **Threads nunca recebem objetos do tkinter** (nem `self` de uma janela):
+    só dados e filas. Senão o coletor de lixo pode destruir o objeto fora da
+    thread principal e derrubar o processo ("Tcl_AsyncDelete").
+12. **Registro do Windows só em HKCU e só sob a chave `Lotus.Converter`.**
+    Nunca apagar chaves de outros programas. Testes no Linux usam
+    `tests/fake_winreg.py`; o comportamento real é validado no CI Windows.
+13. Erro novo que o usuário pode resolver → mensagem em `core/errors.py`
+    com "Como resolver". Reparo automático só quando não altera dados
+    (ex.: salvar com outro nome), sempre com aviso.

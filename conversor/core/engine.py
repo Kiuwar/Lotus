@@ -17,6 +17,8 @@ from pathlib import Path
 
 from conversor.core import registry, validate
 from conversor.core.detect import DetectionError, detect, normalize_ext
+from conversor.core.errors import explain
+from conversor.logs import get_logger
 
 
 class ConversionError(Exception):
@@ -41,6 +43,27 @@ def _unique_path(path: Path) -> Path:
         if not candidate.exists():
             return candidate
         n += 1
+
+
+def _place(tmp: Path, final: Path, overwrite: bool, options: dict) -> Path:
+    """Dá o nome final ao temporário.
+
+    Reparo automático: se o destino existente está bloqueado (aberto no Excel,
+    num visualizador etc.), não perdemos a conversão: salvamos com um nome
+    novo e avisamos.
+    """
+    try:
+        os.replace(tmp, final)
+        return final
+    except PermissionError:
+        if not (overwrite and final.exists()):
+            raise
+    alt = _unique_path(final)
+    os.replace(tmp, alt)
+    options.setdefault("_warnings", []).append(
+        f"{final.name} está em uso por outro programa; salvo como {alt.name}."
+    )
+    return alt
 
 
 def convert_file(
@@ -81,26 +104,29 @@ def convert_file(
         )
 
     out_dir = Path(out_dir) if out_dir else src.parent
-    out_dir.mkdir(parents=True, exist_ok=True)
     final = out_dir / f"{src.stem}.{target}"
     if final.resolve() == src.resolve():
         raise ConversionError("A saída coincide com o arquivo de origem.")
-    if not overwrite:
-        final = _unique_path(final)
 
+    log = get_logger()
     # O temporário mantém a extensão de destino porque algumas ferramentas
     # (ex.: ffmpeg) escolhem o formato pela extensão.
     tmp = out_dir / f"{src.stem}.tmp-{uuid.uuid4().hex[:8]}.{target}"
     try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        if not overwrite:
+            final = _unique_path(final)
         conv.fn(src, tmp, options)
         problem = validate.check(tmp, target)
         if problem:
             raise ConversionError(f"Saída inválida ({target.upper()}): {problem}")
-        os.replace(tmp, final)
-    except ConversionError:
+        final = _place(tmp, final, overwrite, options)
+    except ConversionError as e:
+        log.warning("%s -> %s: %s", src, target, e)
         raise
-    except Exception as e:  # erro de biblioteca: mensagem clara, sem traceback ao usuário
-        raise ConversionError(f"Falha ao converter {src.name}: {e}") from e
+    except Exception as e:  # erro de biblioteca/sistema: mensagem clara ao usuário, detalhe no log
+        log.exception("%s -> %s falhou", src, target)
+        raise ConversionError(explain(e, src)) from e
     finally:
         if tmp.exists():
             tmp.unlink()

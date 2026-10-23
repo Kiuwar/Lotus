@@ -19,6 +19,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--qualidade", type=int, help="qualidade JPG/WEBP (1-100, padrão 90)")
     p.add_argument("--separador", help="separador do CSV gerado (padrão ;)")
     p.add_argument("--listar", action="store_true", help="lista as conversões disponíveis")
+    p.add_argument("--instalar-menu", action="store_true", help="instala o menu do botão direito (Windows)")
+    p.add_argument("--remover-menu", action="store_true", help="remove o menu do botão direito (Windows)")
+    p.add_argument("--reparar", action="store_true", help="diagnostica e repara a instalação")
     p.add_argument("--versao", action="version", version=f"%(prog)s {__version__}")
     return p
 
@@ -35,6 +38,25 @@ def main(argv: list[str] | None = None) -> int:
         for c in registry.all_converters():
             flag = "" if c.available() else "  (indisponível: requer ffmpeg)"
             print(f"{c.category:10} {c.source:>5} -> {c.target}{flag}")
+        return 0
+
+    if args.reparar:
+        from conversor import diagnostics
+
+        for line in diagnostics.run():
+            print(line)
+        return 0
+
+    if args.instalar_menu or args.remover_menu:
+        if sys.platform != "win32":
+            print("O menu do botão direito só existe no Windows.", file=sys.stderr)
+            return 2
+        from conversor import shell
+
+        if args.remover_menu:
+            print(f"Menu removido de {shell.uninstall()} tipos de arquivo.")
+        else:
+            print(f"Menu instalado em {shell.install()} tipos de arquivo.")
         return 0
 
     if not args.arquivos or not args.target:

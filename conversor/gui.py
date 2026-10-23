@@ -32,7 +32,7 @@ class App(ttk.Frame):
         self.events: queue.Queue = queue.Queue()
         self.worker: threading.Thread | None = None
 
-        master.title(f"Kiuwar Conversor {__version__}")
+        master.title(f"Lotus {__version__}")
         master.minsize(720, 480)
         self.grid(sticky="nsew")
         master.columnconfigure(0, weight=1)
@@ -42,6 +42,7 @@ class App(ttk.Frame):
     # ---------- montagem ----------
 
     def _build(self) -> None:
+        self._build_menubar()
         bar = ttk.Frame(self)
         bar.grid(row=0, column=0, sticky="ew")
         ttk.Button(bar, text="Adicionar arquivos…", command=self.add_dialog).pack(side="left")
@@ -99,6 +100,49 @@ class App(ttk.Frame):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
         self.rowconfigure(4, weight=1)
+
+    def _build_menubar(self) -> None:
+        menubar = tk.Menu(self.master)
+        tools = tk.Menu(menubar, tearoff=False)
+        on_windows = "normal" if sys.platform == "win32" else "disabled"
+        tools.add_command(label="Instalar menu do botão direito", command=self.install_menu, state=on_windows)
+        tools.add_command(label="Remover menu do botão direito", command=self.uninstall_menu, state=on_windows)
+        tools.add_separator()
+        tools.add_command(label="Diagnosticar e reparar", command=self.diagnose)
+        tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
+        menubar.add_cascade(label="Ferramentas", menu=tools)
+        self.master.configure(menu=menubar)
+
+    # ---------- ferramentas ----------
+
+    def install_menu(self) -> None:
+        from conversor import shell
+
+        try:
+            n = shell.install()
+        except OSError as e:
+            messagebox.showerror("Lotus", f"Não foi possível gravar no registro: {e}")
+            return
+        self._log(f"Menu \"Converter para\" instalado em {n} tipos de arquivo "
+                  "(no Windows 11: \"Mostrar mais opções\").")
+
+    def uninstall_menu(self) -> None:
+        from conversor import shell
+
+        self._log(f"Menu removido de {shell.uninstall()} tipos de arquivo.")
+
+    def diagnose(self) -> None:
+        from conversor import diagnostics
+
+        for line in diagnostics.run():
+            self._log(line)
+
+    def open_log_dir(self) -> None:
+        from conversor.logs import log_dir
+        from conversor.menu import open_dir
+
+        log_dir().mkdir(parents=True, exist_ok=True)
+        open_dir(log_dir())
 
     # ---------- lista de arquivos ----------
 
@@ -171,29 +215,13 @@ class App(ttk.Frame):
             return
         self.convert_btn.configure(state="disabled")
         self.progress.configure(maximum=len(jobs), value=0)
-        args = (jobs, target, out_dir, self.overwrite.get())
-        self.worker = threading.Thread(target=self._work, args=args, daemon=True)
+        # A thread recebe só dados e a fila, nunca `self`: se ela segurasse um
+        # objeto do tkinter, o coletor de lixo poderia destruí-lo fora da
+        # thread principal e derrubar o Tcl ("Tcl_AsyncDelete").
+        args = (self.events, jobs, target, out_dir, self.overwrite.get())
+        self.worker = threading.Thread(target=_work, args=args, daemon=True)
         self.worker.start()
         self.after(100, self._poll)
-
-    def _work(self, jobs, target, out_dir, overwrite) -> None:
-        # Roda fora da thread da interface; só conversa com ela pela fila.
-        for iid, path in jobs:
-            self.events.put(("status", iid, "convertendo…"))
-            try:
-                r = convert_file(path, target, out_dir, overwrite)
-                self.events.put(("status", iid, f"ok → {r.output.name}"))
-                self.events.put(("log", f"OK  {Path(path).name} → {r.output}"))
-                for w in r.warnings:
-                    self.events.put(("log", f"AVISO  {w}"))
-            except ConversionError as e:
-                self.events.put(("status", iid, "erro"))
-                self.events.put(("log", f"ERRO  {e}"))
-            except Exception as e:  # nunca deixar a thread morrer em silêncio
-                self.events.put(("status", iid, "erro inesperado"))
-                self.events.put(("log", f"ERRO INESPERADO  {Path(path).name}: {e!r}"))
-            self.events.put(("step",))
-        self.events.put(("done",))
 
     def _poll(self) -> None:
         try:
@@ -219,6 +247,26 @@ class App(ttk.Frame):
         self.log.configure(state="disabled")
 
 
+def _work(events: queue.Queue, jobs, target, out_dir, overwrite) -> None:
+    # Roda fora da thread da interface; só conversa com ela pela fila.
+    for iid, path in jobs:
+        events.put(("status", iid, "convertendo…"))
+        try:
+            r = convert_file(path, target, out_dir, overwrite)
+            events.put(("status", iid, f"ok → {r.output.name}"))
+            events.put(("log", f"OK  {Path(path).name} → {r.output}"))
+            for w in r.warnings:
+                events.put(("log", f"AVISO  {w}"))
+        except ConversionError as e:
+            events.put(("status", iid, "erro"))
+            events.put(("log", f"ERRO  {e}"))
+        except Exception as e:  # nunca deixar a thread morrer em silêncio
+            events.put(("status", iid, "erro inesperado"))
+            events.put(("log", f"ERRO INESPERADO  {Path(path).name}: {e!r}"))
+        events.put(("step",))
+    events.put(("done",))
+
+
 def _enable_dpi_awareness() -> None:
     """Evita interface borrada em telas com escala > 100% no Windows."""
     if sys.platform != "win32":
@@ -231,12 +279,13 @@ def _enable_dpi_awareness() -> None:
         pass
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    files = sys.argv[1:] if argv is None else argv
     _enable_dpi_awareness()
     root = tk.Tk()
     app = App(root)
-    if len(sys.argv) > 1:  # "Abrir com" / arrastar arquivos sobre o .exe
-        app.add_files(sys.argv[1:])
+    if files:  # "Abrir com" / arrastar arquivos sobre o .exe
+        app.add_files(files)
     root.mainloop()
     return 0
 

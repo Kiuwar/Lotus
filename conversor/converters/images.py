@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageFile, ImageOps
 
 from conversor.core.registry import register
 
@@ -36,7 +36,28 @@ def _has_alpha(im: Image.Image) -> bool:
 
 
 def _open(src: Path, options: dict) -> Image.Image:
-    """Abre, carrega o primeiro quadro na memória e fecha o arquivo de origem."""
+    """Abre a imagem; se estiver truncada (download incompleto), tenta recuperar."""
+    try:
+        return _load(src, options)
+    except OSError as e:
+        if "truncated" not in str(e).lower():
+            raise
+    # Reparo: o Pillow consegue ler a parte íntegra de uma imagem truncada.
+    # A flag é global no Pillow, então é restaurada logo em seguida.
+    previous = ImageFile.LOAD_TRUNCATED_IMAGES
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    try:
+        im = _load(src, options)
+    finally:
+        ImageFile.LOAD_TRUNCATED_IMAGES = previous
+    options.setdefault("_warnings", []).append(
+        f"{src.name} está danificado (incompleto); a parte recuperável foi convertida."
+    )
+    return im
+
+
+def _load(src: Path, options: dict) -> Image.Image:
+    """Carrega o primeiro quadro na memória e fecha o arquivo de origem."""
     with Image.open(src) as raw:
         frames = getattr(raw, "n_frames", 1)
         if frames > 1:

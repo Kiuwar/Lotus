@@ -48,15 +48,15 @@ jobs:
       - name: Empacotar
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --onedir --name KiuwarConversor --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --paths . packaging/app_gui.py
           pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --paths . packaging/app_cli.py
-          Copy-Item dist/conversor-cli.exe dist/KiuwarConversor/
-          Copy-Item README.md, docs/FORMATOS.md dist/KiuwarConversor/
+          Copy-Item dist/conversor-cli.exe dist/Lotus/
+          Copy-Item README.md, docs/FORMATOS.md dist/Lotus/
 
       - name: Teste do executável empacotado
         shell: pwsh
         run: |
-          $exe = "dist/KiuwarConversor/conversor-cli.exe"
+          $exe = "dist/Lotus/conversor-cli.exe"
           & $exe --listar
           if ($LASTEXITCODE -ne 0) { throw "--listar falhou" }
           python -c "from PIL import Image; Image.new('RGBA',(32,32),(255,0,0,128)).save('t.png')"
@@ -65,7 +65,24 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "conversão falhou no executável" }
           if (!(Test-Path saida/t.pdf)) { throw "PDF não gerado" }
 
+      - name: Teste do menu do botão direito (registro real do Windows)
+        shell: pwsh
+        run: |
+          $dir = (Resolve-Path dist/Lotus).Path
+          & "$dir/conversor-cli.exe" --instalar-menu
+          if ($LASTEXITCODE -ne 0) { throw "instalação do menu falhou" }
+          $key = "HKCU:\Software\Classes\SystemFileAssociations\.png\shell\Lotus.Converter"
+          $label = (Get-ItemProperty $key).MUIVerb
+          if ($label -ne "Converter para") { throw "rótulo inesperado: $label" }
+          $cmd = (Get-ItemProperty "$key\shell\14_pdf\command").'(default)'
+          Write-Host "Comando registrado: $cmd"
+          # Mesmo instalado pelo CLI, o menu precisa chamar o Lotus.exe (com janela).
+          if ($cmd -ne "`"$dir\Lotus.exe`" --menu-converter pdf `"%1`"") { throw "comando inesperado" }
+          & "$dir/conversor-cli.exe" --reparar
+          & "$dir/conversor-cli.exe" --remover-menu
+          if (Test-Path $key) { throw "menu não foi removido" }
+
       - uses: actions/upload-artifact@v4
         with:
-          name: KiuwarConversor-windows
-          path: dist/KiuwarConversor/
+          name: Lotus-windows
+          path: dist/Lotus/

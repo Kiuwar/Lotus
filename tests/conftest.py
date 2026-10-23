@@ -7,12 +7,17 @@ ou pelo ffmpeg, para que o teste exercite o caminho real de conversão.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import tempfile
 import subprocess
 from pathlib import Path
 
 import pytest
 from PIL import Image
+
+# O log de erros dos testes vai para uma pasta temporária, não para a do usuário.
+os.environ["LOCALAPPDATA"] = tempfile.mkdtemp(prefix="lotus-test-log-")
 
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
 

@@ -113,22 +113,45 @@ tamanho do instalador, C# seria melhor. A escolha aqui privilegiou
 
 ## 4. Status de verificação
 
-**Verificado nesta sessão (Linux, Python 3.12):**
-- 156 testes passando, incluindo as 122 conversões e a GUI (xvfb).
-- Executável de linha de comando gerado com PyInstaller 6.22.3 e testado
-  (listou as 122 conversões, converteu PNG→PDF e CSV→XLSX, recusou CSV→PDF
-  com mensagem correta).
+**Verificado em Linux (Python 3.12):** 180 testes passando (versão 0.2.0),
+incluindo as 122 conversões, a interface e as janelas do menu (xvfb).
 
-**Pendente — só o CI no Windows confirma:**
-- Testes rodando em `windows-latest` (fonte Arial no PDF, caminhos, tkinter).
-- Build do `KiuwarConversor.exe` com janela e o teste do executável.
-- Conversões de mídia no Windows dependem do `choco install ffmpeg` no CI;
-  se ele falhar, esses testes aparecem como *skipped* — confira o log.
+**Verificado no CI Windows (`windows-latest`), versão 0.1.0:** 156 testes
+passando sem nenhum pulado (inclusive áudio/vídeo com ffmpeg), build do
+`.exe` e teste do executável empacotado. A versão 0.2.0 só conta como
+verificada no Windows depois que o CI dela ficar verde.
 
-Até o CI ficar verde no Windows, **não é correto afirmar que o app funciona
-no Windows**; só que o código está pronto e testado em Linux.
+## 4.1. Menu do botão direito e reparação de erros (versão 0.2.0)
 
----
+**Como funciona (fato):** chaves em
+`HKCU\Software\Classes\SystemFileAssociations\.<ext>\shell\Lotus.Converter`,
+com `SubCommands` vazio e os itens na subchave `shell`. Por usuário, sem
+administrador. As chaves são geradas do registro de conversões, então o
+menu não pode oferecer formato que não existe (há teste para isso).
+
+**O que é verificado automaticamente:**
+- Linux: montagem das chaves, instalação/remoção/reparo com um registro
+  simulado (`tests/fake_winreg.py`), janelas do menu com display virtual.
+- CI Windows: instalação e remoção no **registro real**, e o executável
+  empacotado instalando o menu e apontando para o `Lotus.exe`.
+
+**O que NÃO dá para verificar automaticamente (precisa de teste manual):**
+- O Explorer **exibir** o submenu ao clicar com o botão direito: o CI não
+  tem como clicar no Explorer. Confirmar num PC real, no Windows 10 e no 11
+  ("Mostrar mais opções").
+- A aparência do aviso e da janela "Escolher formato…" no Windows.
+
+**Falha intermitente encontrada e tratada:** durante os testes, o processo
+abortou uma vez. O sintoma é compatível com um problema conhecido do
+tkinter: objeto do Tk coletado pelo coletor de lixo dentro da thread de
+conversão. A causa provável foi removida (threads recebem só dados) e a
+suíte rodou 8 vezes seguidas sem falha. Como a falha original não se
+reproduziu de novo, isso reduz o risco mas **não prova** que ele acabou.
+
+**Reparação de erros:** ver README, seção "Quando algo dá errado". Regra
+adotada: reparo automático só quando não altera o conteúdo (salvar com
+outro nome, ler a parte íntegra de uma imagem, regravar o menu) e sempre
+com aviso; dado ambíguo não é "consertado" por adivinhação.
 
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
@@ -140,6 +163,9 @@ no Windows**; só que o código está pronto e testado em Linux.
   variam muito conforme o PDF. Não recomendado prometer.
 - **PDF → imagem:** exige um renderizador (ex.: PyMuPDF, licença AGPL — que
   obrigaria abrir o código do app se distribuído; avaliar antes).
+- **Vários arquivos no botão direito:** o Explorer abre um processo por
+  arquivo, então cada um mostra seu aviso. Juntar tudo numa janela só
+  exigiria um mecanismo de instância única (ou extensão COM do Explorer).
 - **Arrastar e soltar** na janela: tkinter puro não suporta; dá para abrir
   arquivos arrastando-os sobre o ícone do `.exe` (já tratado em `gui.main`).
 - **Assinatura de código:** o `.exe` não é assinado; o Windows SmartScreen
@@ -177,5 +203,5 @@ preciso base legal, política de privacidade e informação clara ao usuário.
 ## Próximo passo recomendado
 
 Abrir a aba *Actions* do repositório, confirmar o job `test (windows-latest)`
-e `build-windows` verdes e baixar o artefato **KiuwarConversor-windows**
+e `build-windows` verdes e baixar o artefato **Lotus-windows**
 para testar manualmente num PC com Windows.

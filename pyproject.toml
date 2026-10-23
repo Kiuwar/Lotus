@@ -1,5 +1,5 @@
 [project]
-name = "kiuwar-conversor"
+name = "lotus"
 dynamic = ["version"]
 description = "Conversor de arquivos offline para Windows"
 requires-python = ">=3.11"

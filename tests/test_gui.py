@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import time
 
 import pytest
@@ -28,6 +29,8 @@ def app():
     a = App(root)
     yield a
     root.destroy()
+    del a, root
+    gc.collect()  # coleta objetos do Tk aqui, na thread principal
 
 
 def test_gui_converts_end_to_end(app, sample, tmp_path):
