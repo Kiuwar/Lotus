@@ -24,6 +24,9 @@ class Converter:
     notes: str = ""
     # Função que diz se a dependência externa (ex.: ffmpeg) está presente.
     available: Callable[[], bool] = field(default=lambda: True)
+    # True: o conversor recebe uma PASTA e grava um ou mais arquivos nela
+    # (ex.: uma imagem por página de PDF). Ver engine.convert_file.
+    multi: bool = False
 
 
 _REGISTRY: dict[tuple[str, str], Converter] = {}
@@ -35,6 +38,7 @@ def register(
     category: str,
     notes: str = "",
     available: Callable[[], bool] | None = None,
+    multi: bool = False,
 ) -> Callable[[ConvertFn], ConvertFn]:
     """Registra `fn` para todos os pares (origem, destino) com origem != destino."""
 
@@ -53,6 +57,7 @@ def register(
                     category=category,
                     notes=notes,
                     available=available or (lambda: True),
+                    multi=multi,
                 )
         return fn
 
@@ -61,7 +66,7 @@ def register(
 
 def _load_all() -> None:
     # Importar os módulos executa os decoradores @register.
-    from conversor.converters import data, documents, images, media  # noqa: F401
+    from conversor.converters import data, documents, images, media, office, pdf  # noqa: F401
 
 
 def all_converters() -> list[Converter]:

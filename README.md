@@ -5,6 +5,8 @@ computador**, sem enviar nada para a internet.
 
 - Imagens: PNG, JPG, WEBP, BMP, GIF, TIFF, ICO (entre si e para PDF)
 - Dados: CSV, JSON, XLSX (entre si)
+- PDF: para imagens (PNG/JPG, uma por página) e para texto (TXT)
+- Word (se o Microsoft Word estiver instalado): DOCX → PDF e PDF → DOCX
 - Documentos: TXT → PDF, Markdown → HTML
 - Áudio e vídeo (com ffmpeg): MP3, WAV, OGG, FLAC, M4A, MP4, MKV, WEBM, AVI, MOV
 
@@ -74,6 +76,17 @@ conversor-cli.exe --listar
 ```
 
 ## Comportamentos importantes
+
+- **PDF → PNG/JPG:** PDF de 1 página vira um arquivo; com várias páginas, o
+  Lotus cria a pasta `<nome> - páginas PNG` com `pagina_001.png`, `pagina_002.png`…
+- **PDF → TXT:** só funciona com PDF que tem texto selecionável. PDF escaneado
+  (foto de papel) não tem texto e o Lotus avisa — ainda não há OCR.
+- **PDF com senha:** não é convertido; o Lotus explica como gerar uma cópia sem senha.
+- **Word:** DOCX → PDF e PDF → DOCX usam o Microsoft Word do seu computador
+  (sem Word, essas opções aparecem como indisponíveis). No PDF → DOCX o
+  layout é reconstruído pelo Word e pode mudar: confira o documento.
+- Se um arquivo não tem conversão, a coluna *Situação* e a área ao lado de
+  "Converter para" dizem o motivo.
 
 - O arquivo original **nunca** é alterado.
 - Se o destino já existe, o novo recebe ` (1)`, ` (2)`… (a menos que você

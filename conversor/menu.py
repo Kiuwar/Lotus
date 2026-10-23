@@ -21,7 +21,7 @@ from tkinter import messagebox, ttk
 from conversor.core import registry
 from conversor.core.detect import DetectionError, detect
 from conversor.core.engine import ConversionError, Result, convert_file
-from conversor.gui import common_targets
+from conversor.gui import common_targets, motivo_sem_destino
 from conversor.logs import log_file
 
 TITLE = "Lotus"
@@ -150,7 +150,7 @@ class Chooser(ttk.Frame):
         next_row = 2 + len(self.targets) // self.COLUMNS
 
         if not self.targets:
-            msg = "\n".join(problems) or "Nenhum formato de destino em comum para esses arquivos."
+            msg = "\n".join(problems) or motivo_sem_destino(formats) or ""
             ttk.Label(self, text=msg, foreground="#a00", wraplength=380).grid(
                 row=next_row, column=0, columnspan=self.COLUMNS, sticky="w"
             )

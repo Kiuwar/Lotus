@@ -2,7 +2,7 @@
 
 <!-- Arquivo GERADO por scripts/gerar_formatos.py. Não edite à mão. -->
 
-Total: **122 conversões**, todas cobertas por tests/test_matrix.py.
+Total: **127 conversões**, todas cobertas por tests/test_matrix.py.
 
 ## Dados
 
@@ -37,6 +37,16 @@ Observação: Texto simples, A4, fonte 11.
 
 Observação: Uma página por imagem.
 
+## PDF
+
+| Origem | Destinos |
+|---|---|
+| PDF | JPG, PNG, TXT |
+
+Observação: Só o texto (sem layout). PDF escaneado não tem texto e não há OCR.
+
+Observação: Uma imagem por página (150 DPI); várias páginas vão para uma pasta.
+
 ## Vídeo
 
 | Origem | Destinos |
@@ -48,6 +58,15 @@ Observação: Uma página por imagem.
 | WEBM | AVI, MKV, MOV, MP4 |
 
 Observação: Requer ffmpeg instalado (veja README, seção ffmpeg).
+
+## Word
+
+| Origem | Destinos |
+|---|---|
+| DOCX | PDF |
+| PDF | DOCX |
+
+Observação: Requer o Microsoft Word instalado neste computador.
 
 ## Áudio
 

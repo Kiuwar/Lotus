@@ -198,16 +198,45 @@ iniciar o agente. No Linux o teste passava porque esse caminho só roda no
 Windows. Agora o erro vai para o log e o diagnóstico informa "NÃO está
 rodando".
 
+## 4.3. PDF como origem e Word (versão 0.4.0)
+
+**Problema relatado (fato):** na 0.3.0, ao adicionar um PDF, o campo
+"Converter para" ficava vazio e o botão Converter mostrava "Adicione arquivos
+válidos e escolha o formato". Causa: o registro não tinha nenhuma conversão
+com PDF como origem (`targets_for("pdf") == []`), e a interface não explicava
+isso. Não era defeito do motor; era escopo + mensagem ruim.
+
+**Correção:**
+- PDF → PNG/JPG com pypdfium2 (PDFium), uma imagem por página; o motor ganhou
+  saídas múltiplas (`multi=True`): pasta temporária, validação de cada
+  arquivo, nome final só no fim; pasta existente nunca é sobrescrita.
+- PDF → TXT com pypdf; PDF escaneado falha com explicação (sem OCR).
+- DOCX ↔ PDF via Microsoft Word (COM), disponível só com Word instalado, com
+  limite de tempo que encerra apenas a instância aberta pelo Lotus.
+- Mensagens: coluna Situação ("sem conversão para ZIP", "indisponível: requer
+  o Microsoft Word") e motivo ao lado de "Converter para".
+
+**Verificado:** conteúdo das imagens (tamanho em pixels da página A4 a
+150 DPI, página não em branco), texto com acentos e separação por página,
+PDF com senha, PDF só com senha de dono, falha no meio sem sobrar pasta,
+executável PyInstaller convertendo PDF (Linux aqui; Windows no CI).
+
+**NÃO verificado (sem Word no CI):** DOCX → PDF e PDF → DOCX com o Word de
+verdade. A sequência de chamadas foi conferida com um Word simulado e as
+constantes na documentação da Microsoft, mas só o teste no seu PC confirma.
+Também não verificado: se o Word mostra algum aviso ao abrir PDF mesmo com
+`DisplayAlerts = wdAlertsNone` (nesse caso, o limite de 3 minutos encerra a
+instância e o Lotus explica).
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office
   (automação COM) ou LibreOffice instalado. Pode ser adicionado como
   conversão "disponível se o Office/LibreOffice estiver instalado", no mesmo
   modelo do ffmpeg.
-- **PDF → Word editável:** não há conversão offline confiável; resultados
-  variam muito conforme o PDF. Não recomendado prometer.
-- **PDF → imagem:** exige um renderizador (ex.: PyMuPDF, licença AGPL — que
-  obrigaria abrir o código do app se distribuído; avaliar antes).
+- **PDF → Word sem o Microsoft Word:** não há conversão offline confiável.
+  Com Word, o resultado é aproximado (ver 4.3).
+- **OCR (PDF escaneado → texto):** não incluído (exigiria Tesseract).
 - **Vários arquivos no botão direito:** o Explorer abre um processo por
   arquivo, então cada um mostra seu aviso. Juntar tudo numa janela só
   exigiria um mecanismo de instância única (ou extensão COM do Explorer).

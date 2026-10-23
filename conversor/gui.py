@@ -23,6 +23,37 @@ def common_targets(formats: list[str]) -> list[str]:
     return sorted(set.intersection(*sets))
 
 
+def situacao_arquivo(fmt: str) -> str:
+    """Texto da coluna Situação para um arquivo já detectado."""
+    if registry.targets_for(fmt):
+        return "pronto"
+    todos = [c for c in registry.all_converters() if c.source == fmt]
+    if todos:  # existe conversão, mas falta Word/ffmpeg
+        return "indisponível: " + todos[0].notes.rstrip(".").lower()
+    return f"sem conversão para {fmt.upper()}"
+
+
+def motivo_sem_destino(formats: list[str]) -> str | None:
+    """Explica por que não há formato de destino; None se há pelo menos um."""
+    if not formats:
+        return "Adicione arquivos para converter."
+    if common_targets(formats):
+        return None
+    sem = sorted({f for f in formats if not registry.targets_for(f)})
+    if sem:
+        partes = []
+        for f in sem:
+            conv = next((c for c in registry.all_converters() if c.source == f), None)
+            if conv:
+                partes.append(f"{f.upper()}: {conv.notes}")
+            else:
+                partes.append(f"arquivos {f.upper()} ainda não podem ser convertidos pelo Lotus")
+        return "Sem conversão disponível — " + "; ".join(partes) + "."
+    nomes = ", ".join(sorted({f.upper() for f in formats}))
+    return (f"Os arquivos selecionados ({nomes}) não têm um formato de destino em comum. "
+            "Remova alguns e converta cada tipo separadamente.")
+
+
 class App(ttk.Frame):
     def __init__(self, master: tk.Tk):
         super().__init__(master, padding=10)
@@ -64,6 +95,8 @@ class App(ttk.Frame):
         self.target = tk.StringVar()
         self.target_box = ttk.Combobox(opts, textvariable=self.target, state="readonly", width=10)
         self.target_box.grid(row=0, column=1, sticky="w", padx=6)
+        self.hint = ttk.Label(opts, text="", foreground="#a00", wraplength=440, justify="left")
+        self.hint.grid(row=0, column=2, columnspan=2, sticky="w")
 
         self.same_dir = tk.BooleanVar(value=True)
         ttk.Checkbutton(
@@ -165,7 +198,7 @@ class App(ttk.Frame):
             known.add(p)
             try:
                 fmt = detect(Path(p)).fmt
-                status = "pronto"
+                status = situacao_arquivo(fmt)
             except DetectionError as e:
                 fmt, status = "?", str(e)
             iid = self.tree.insert("", "end", text=p, values=(fmt.upper(), status))
@@ -193,6 +226,8 @@ class App(ttk.Frame):
         self.target_box["values"] = [t.upper() for t in targets]
         if self.target.get().lower() not in targets:
             self.target.set(targets[0].upper() if targets else "")
+        motivo = motivo_sem_destino(list(self.formats.values())) if self.files else None
+        self.hint.configure(text=motivo or "")
 
     # ---------- saída ----------
 
@@ -214,11 +249,15 @@ class App(ttk.Frame):
         jobs = [(iid, self.files[iid]) for iid in self.files if iid in self.formats]
         target = self.target.get().lower()
         if not jobs or not target:
-            messagebox.showinfo("Conversor", "Adicione arquivos válidos e escolha o formato.")
+            if self.files and not jobs:
+                motivo = "Nenhum dos arquivos foi reconhecido (veja a coluna Situação)."
+            else:
+                motivo = motivo_sem_destino(list(self.formats.values())) or "Escolha o formato."
+            messagebox.showinfo("Lotus", motivo)
             return
         out_dir = None if self.same_dir.get() else self.out_dir.get().strip()
         if out_dir == "":
-            messagebox.showinfo("Conversor", "Escolha a pasta de saída.")
+            messagebox.showinfo("Lotus", "Escolha a pasta de saída.")
             return
         self.convert_btn.configure(state="disabled")
         self.progress.configure(maximum=len(jobs), value=0)

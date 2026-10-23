@@ -84,6 +84,13 @@ jobs:
           & $exe t.png t.txt --para pdf --saida saida
           if ($LASTEXITCODE -ne 0) { throw "conversão falhou no executável" }
           if (!(Test-Path saida/t.pdf)) { throw "PDF não gerado" }
+          # PDF como origem: prova que o PyInstaller levou a DLL do PDFium e o pypdf.
+          # (saida/t.pdf veio da imagem e não tem texto; gera um PDF a partir do TXT)
+          & $exe t.txt --para pdf --saida saida_txt
+          & $exe saida_txt/t.pdf --para png --saida saida_pdf
+          if (!(Test-Path saida_pdf/t.png)) { throw "PDF -> PNG falhou no executável" }
+          & $exe saida_txt/t.pdf --para txt --saida saida_pdf
+          if (!(Select-String -Path saida_pdf/t.txt -Pattern "ação" -Quiet)) { throw "PDF -> TXT sem o texto esperado" }
 
       - name: Teste do menu do botão direito (registro real do Windows)
         shell: pwsh

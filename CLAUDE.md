@@ -12,7 +12,9 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
 - `conversor/core/engine.py` — detecta, converte, valida, grava (atômico).
 - `conversor/core/detect.py` — formato real pelo conteúdo, não pela extensão.
 - `conversor/core/validate.py` — reabre a saída antes de aceitar.
-- `conversor/converters/` — uma família de formatos por módulo.
+- `conversor/converters/` — uma família de formatos por módulo
+  (`pdf.py`: PDF→PNG/JPG/TXT; `office.py`: DOCX↔PDF via Microsoft Word).
+  Conversor com `multi=True` recebe uma pasta e grava várias saídas.
 - `conversor/launcher.py` — entrada do Lotus.exe (janela, menu, reparo).
 - `conversor/shell.py` — menu do botão direito (registro, HKCU).
 - `conversor/menu.py` — janelas abertas pelo botão direito.
@@ -76,3 +78,7 @@ python -m conversor --listar
     estrutura nova ganha teste de `sizeof` em `test_atalho_windows.py`.
 16. O que só um humano consegue testar (gesto real no Explorer) deve ser
     dito como pendente, nunca como verificado.
+17. **Word (office.py):** constantes conferidas em learn.microsoft.com
+    (`wdFormatPDF=17`, `wdFormatDocumentDefault=16`, `wdAlertsNone=0`).
+    Sem Word no CI: a lógica é testada com Word simulado e o uso real é
+    teste manual — nunca dizer que foi verificado.
