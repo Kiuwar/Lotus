@@ -105,11 +105,15 @@ jobs:
 
       - name: Testar instalação e desinstalação (como um usuário faria)
         shell: pwsh
+        timeout-minutes: 8
         run: |
           $app = "$env:LOCALAPPDATA\Programs\Lotus"
           $run = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
           $menu = "HKCU:\Software\Classes\SystemFileAssociations\.png\shell\Lotus.Converter"
-          $p = Start-Process dist/LotusSetup.exe -Wait -PassThru -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS="menu,atalho"','/LOG=install.log'
+          # Sem -Wait: ele espera também os processos filhos, e o agente do painel
+          # fica rodando de propósito. WaitForExit espera só o instalador.
+          $p = Start-Process dist/LotusSetup.exe -PassThru -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS="menu,atalho"','/LOG=install.log'
+          if (!$p.WaitForExit(180000)) { Get-Content install.log -Tail 40; throw "instalador não terminou em 3 minutos" }
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "instalador saiu com $($p.ExitCode)" }
           if (!(Test-Path "$app\Lotus.exe")) { throw "Lotus.exe não instalado em $app" }
 
@@ -129,7 +133,8 @@ jobs:
           & "$app\conversor-cli.exe" t.png --para webp --saida instalado
           if (!(Test-Path instalado/t.webp)) { throw "conversão pelo programa instalado falhou" }
 
-          Start-Process "$app\unins000.exe" -Wait -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART'
+          $u = Start-Process "$app\unins000.exe" -PassThru -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART'
+          [void]$u.WaitForExit(120000)
           $fim = (Get-Date).AddSeconds(60)
           while ((Test-Path "$app\Lotus.exe") -and (Get-Date) -lt $fim) { Start-Sleep -Milliseconds 500 }
           if (Test-Path "$app\Lotus.exe") { throw "desinstalação não removeu os arquivos" }
