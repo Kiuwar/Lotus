@@ -2,7 +2,15 @@ name: CI
 
 on:
   push:
+    tags: ["v*"]
+    branches: ["**"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "Publicar o LotusSetup.exe numa Release do GitHub"
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -48,6 +56,8 @@ jobs:
     needs: test
     runs-on: windows-latest
     timeout-minutes: 30
+    permissions:
+      contents: write  # só para criar a Release; o resto do job apenas lê
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -152,3 +162,23 @@ jobs:
         with:
           name: LotusSetup
           path: dist/LotusSetup.exe
+
+      - name: Publicar o instalador numa Release
+        # Só quando pedido (execução manual com "publicar") ou ao criar uma tag v*.
+        if: (github.event_name == 'workflow_dispatch' && inputs.publicar) || startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ver = python -c "import conversor; print(conversor.__version__)"
+          $tag = "v$ver"
+          $hash = (Get-FileHash dist/LotusSetup.exe -Algorithm SHA256).Hash
+          $notes = "Instalador do Lotus $ver para Windows (por usuário, sem administrador).`n`nSHA-256: $hash`n`nO instalador não tem assinatura digital: se o Windows SmartScreen avisar, clique em Mais informações > Executar assim mesmo."
+          $null = gh release view $tag 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag dist/LotusSetup.exe --clobber
+          } else {
+            gh release create $tag dist/LotusSetup.exe --target $env:GITHUB_SHA --title "Lotus $ver" --notes $notes
+          }
+          if ($LASTEXITCODE -ne 0) { throw "falha ao publicar a Release" }
+          Write-Host "Release publicada: $tag"

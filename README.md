@@ -13,9 +13,10 @@ Lista completa e sempre atualizada: [docs/FORMATOS.md](docs/FORMATOS.md)
 
 ## Instalar no Windows
 
-1. Baixe o **LotusSetup.exe**: no GitHub, aba *Actions* → execução mais
-   recente com ✓ verde → seção *Artifacts* → **LotusSetup** (vem em .zip;
-   extraia).
+1. Baixe o **LotusSetup.exe** na página **Releases** do repositório
+   (coluna da direita da página inicial, ou a aba *Code → Releases*), em
+   *Assets*. Também fica como artefato **LotusSetup** em cada execução
+   verde da aba *Actions* (vem em .zip; extraia; exige login no GitHub).
 2. Execute o `LotusSetup.exe`. Não precisa de administrador: instala só
    para o seu usuário em `%LOCALAPPDATA%\Programs\Lotus`.
 3. Como o instalador não tem assinatura digital, o Windows SmartScreen pode
