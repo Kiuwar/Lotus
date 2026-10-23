@@ -11,6 +11,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # Sem limite, um espelho de pacotes travado segura o job por até 6 horas.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,7 +22,14 @@ jobs:
 
       - name: ffmpeg (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg xvfb
+        timeout-minutes: 12
+        # Uma nova tentativa se o espelho do Ubuntu travar ou falhar; cada uma limitada a 5 min.
+        run: |
+          for i in 1 2; do
+            if timeout 300 sh -c 'sudo apt-get update -o Acquire::Retries=3 && sudo apt-get install -y --no-install-recommends ffmpeg xvfb'; then exit 0; fi
+            echo "apt falhou/travou (tentativa $i)"; sleep 10
+          done
+          exit 1
       - name: ffmpeg (Windows)
         if: runner.os == 'Windows'
         # Se falhar, os testes de áudio/vídeo são PULADOS (e aparecem como skipped no log).
@@ -38,6 +47,7 @@ jobs:
   build-windows:
     needs: test
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
