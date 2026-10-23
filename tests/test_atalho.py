@@ -157,13 +157,16 @@ def test_autostart_roundtrip_with_fake_registry(monkeypatch):
 def test_diagnostics_repairs_stale_autostart(monkeypatch):
     from conversor import diagnostics
 
+    # Não iniciar um processo de verdade (no Windows isso tentaria abrir o .exe).
+    monkeypatch.setattr(controle, "agente_rodando", lambda: False)
+    monkeypatch.setattr(controle, "iniciar_agente", lambda: False)
     wr = FakeWinreg()
     monkeypatch.setattr(controle.shell, "launcher_command", lambda: [r"D:\velho\Lotus.exe"])
     controle.ativar_inicio(wr)
     config.salvar(config.Config(config.PADRAO, atalho_ativo=True))
     monkeypatch.setattr(controle.shell, "launcher_command", lambda: [r"E:\novo\Lotus.exe"])
     msg = diagnostics.repair_autostart(wr)
-    assert "reparado" in msg
+    assert "reparado" in msg and "NÃO está rodando" in msg
     assert controle.inicio_registrado(wr) == r'"E:\novo\Lotus.exe" --agente'
 
 
@@ -227,8 +230,12 @@ def test_floating_panel_shows_formats_and_converts(root, sample):
     top.destroy()
 
 
-def test_config_window_blocks_dangerous_and_saves(root):
+def test_config_window_blocks_dangerous_and_saves(root, monkeypatch):
     from conversor.atalho.janela_config import JanelaAtalho
+
+    # No Windows, salvar liga/desliga o agente de verdade: aqui só a configuração importa.
+    monkeypatch.setattr(controle, "ativar", lambda: "ativado")
+    monkeypatch.setattr(controle, "desativar", lambda: "desativado")
 
     j = JanelaAtalho(root)
     assert j.gatilho() == config.PADRAO
@@ -257,3 +264,20 @@ def test_launcher_silent_mode_shows_nothing(monkeypatch):
     monkeypatch.setattr("conversor.diagnostics.run", lambda: ["ok"])
     assert launcher.main(["--reparar", "--silencioso"]) == 0
     assert shown == []
+
+
+def test_start_agent_with_missing_exe_reports_failure(monkeypatch):
+    """Lotus.exe apagado/movido: diagnóstico não pode travar."""
+    import subprocess
+    import sys
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(controle, "agente_rodando", lambda: False)
+    monkeypatch.setattr(subprocess, "DETACHED_PROCESS", 0x8, raising=False)
+    monkeypatch.setattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, raising=False)
+
+    def sem_arquivo(*a, **k):
+        raise FileNotFoundError(2, "O sistema não pode encontrar o arquivo especificado")
+
+    monkeypatch.setattr(subprocess, "Popen", sem_arquivo)
+    assert controle.iniciar_agente(espera=0.1) is False

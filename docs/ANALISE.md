@@ -187,6 +187,16 @@ Com várias abas (Windows 11), usa a aba cuja seleção mudou.
   (técnica da tecla-máscara 0xE8, usada pelo AutoHotkey) em todas as
   versões do Windows.
 - Comportamento com antivírus de terceiros (podem bloquear ganchos).
+- A leitura da seleção pelo COM numa janela real do Explorer: o teste
+  existe, mas no CI (run de 23/10/2026) foi **pulado** porque o runner do
+  GitHub não abriu uma janela do Explorer. Continua sem verificação
+  automática; só o teste manual confirma.
+
+**Bug encontrado pelo CI Windows e corrigido:** se o `Lotus.exe` registrado
+não existisse mais, o diagnóstico travava com `FileNotFoundError` ao tentar
+iniciar o agente. No Linux o teste passava porque esse caminho só roda no
+Windows. Agora o erro vai para o log e o diagnóstico informa "NÃO está
+rodando".
 
 ## 5. Limitações conhecidas (não implementadas de propósito)
 

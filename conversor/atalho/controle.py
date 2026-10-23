@@ -13,6 +13,7 @@ import time
 
 from conversor import shell
 from conversor.atalho import config
+from conversor.logs import get_logger
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALOR = "Lotus.Atalho"
@@ -68,7 +69,13 @@ def iniciar_agente(espera: float = 5.0) -> bool:
     if agente_rodando():
         return True
     flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-    subprocess.Popen(shell.launcher_command() + ["--agente"], creationflags=flags, close_fds=True)
+    cmd = shell.launcher_command() + ["--agente"]
+    try:
+        subprocess.Popen(cmd, creationflags=flags, close_fds=True)
+    except OSError:
+        # Ex.: Lotus.exe movido ou apagado. Quem chamou informa "não iniciou".
+        get_logger().exception("não foi possível iniciar o agente: %r", cmd)
+        return False
     fim = time.time() + espera
     while time.time() < fim:
         if agente_rodando():
