@@ -1,0 +1,6 @@
+# Versões fixadas e verificadas no PyPI (pip index versions) em 2026-10-23.
+# Atualize uma de cada vez e rode os testes; nunca "pip install -U" em tudo.
+pillow==12.3.0
+openpyxl==3.1.5
+fpdf2==2.8.9
+markdown==3.11.2

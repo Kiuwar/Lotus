@@ -1,0 +1,30 @@
+[project]
+name = "kiuwar-conversor"
+dynamic = ["version"]
+description = "Conversor de arquivos offline para Windows"
+requires-python = ">=3.11"
+dependencies = [
+    "pillow==12.3.0",
+    "openpyxl==3.1.5",
+    "fpdf2==2.8.9",
+    "markdown==3.11.2",
+]
+
+[project.scripts]
+conversor = "conversor.cli:main"
+
+[project.gui-scripts]
+conversor-gui = "conversor.gui:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "conversor.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["conversor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
