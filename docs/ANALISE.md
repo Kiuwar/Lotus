@@ -153,6 +153,41 @@ adotada: reparo automático só quando não altera o conteúdo (salvar com
 outro nome, ler a parte íntegra de uma imagem, regravar o menu) e sempre
 com aviso; dado ambíguo não é "consertado" por adivinhação.
 
+## 4.2. Painel flutuante (Ctrl+Shift+clique) e instalador (versão 0.3.0)
+
+**Por que Ctrl+Shift e não Ctrl (fato):** no Explorer, Ctrl+clique
+marca/desmarca arquivos numa seleção múltipla. Usar esse gesto tiraria essa
+função do Windows. O padrão é Ctrl+Shift+clique e o usuário pode trocar.
+
+**Como funciona:** um processo em segundo plano (`Lotus.exe --agente`)
+instala um gancho de mouse de baixo nível (`WH_MOUSE_LL`). Quando o gesto
+acontece numa janela do Explorer, o clique é engolido; o Lotus solta as
+teclas virtualmente e simula um clique simples para o Explorer selecionar
+só aquele arquivo, lê a seleção pelo COM `Shell.Application` e abre o painel.
+Com várias abas (Windows 11), usa a aba cuja seleção mudou.
+
+**Verificado automaticamente:**
+- Linux: validação dos atalhos, máquina de estados do gesto (inclusive
+  ignorar cliques injetados e janelas que não são do Explorer), escolha da
+  aba, configuração corrompida, início automático (registro simulado),
+  janela de configuração e painel (display virtual).
+- CI Windows: tamanhos das estruturas da API; gancho instala/desinstala;
+  tecla de atalho registra; instância única e parada do agente; leitura da
+  seleção de uma janela real do Explorer (se o runner abrir o Explorer —
+  senão o teste aparece como *skipped* no log); instalador gerado,
+  instalação silenciosa, menu e início automático apontando para a pasta
+  instalada, agente rodando, conversão pelo programa instalado e
+  desinstalação removendo tudo.
+
+**NÃO verificado (só dá para testar à mão num PC):**
+- O gesto real: segurar Ctrl+Shift, clicar num arquivo do Explorer e o
+  painel aparecer. O CI não consegue posicionar o mouse sobre um arquivo
+  específico do Explorer de forma confiável.
+- Se soltar Alt/Win virtualmente evita mesmo o menu Iniciar/menu da janela
+  (técnica da tecla-máscara 0xE8, usada pelo AutoHotkey) em todas as
+  versões do Windows.
+- Comportamento com antivírus de terceiros (podem bloquear ganchos).
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office
@@ -166,6 +201,8 @@ com aviso; dado ambíguo não é "consertado" por adivinhação.
 - **Vários arquivos no botão direito:** o Explorer abre um processo por
   arquivo, então cada um mostra seu aviso. Juntar tudo numa janela só
   exigiria um mecanismo de instância única (ou extensão COM do Explorer).
+- **Painel flutuante na área de trabalho:** não suportado (só janelas de
+  pastas do Explorer). A área de trabalho exige outra interface COM.
 - **Arrastar e soltar** na janela: tkinter puro não suporta; dá para abrir
   arquivos arrastando-os sobre o ícone do `.exe` (já tratado em `gui.main`).
 - **Assinatura de código:** o `.exe` não é assinado; o Windows SmartScreen

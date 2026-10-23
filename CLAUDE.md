@@ -17,6 +17,11 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
 - `conversor/shell.py` — menu do botão direito (registro, HKCU).
 - `conversor/menu.py` — janelas abertas pelo botão direito.
 - `conversor/diagnostics.py` — diagnóstico e reparo da instalação.
+- `conversor/atalho/` — painel flutuante (Ctrl+Shift+clique): `config.py`
+  (atalho e validação), `gesto.py` (lógica pura do gesto), `winapi.py`
+  (ctypes), `selecao.py` (seleção do Explorer via COM), `agente.py`
+  (processo em segundo plano), `painel.py`, `janela_config.py`, `controle.py`.
+- `installer/lotus.iss` — instalador Inno Setup (gerado e testado no CI).
 - `docs/FORMATOS.md` — GERADO por `scripts/gerar_formatos.py`. Não editar à mão.
 - `docs/ANALISE.md` — por que o projeto é assim e como evitar erros de IA.
 
@@ -57,9 +62,17 @@ python -m conversor --listar
 11. **Threads nunca recebem objetos do tkinter** (nem `self` de uma janela):
     só dados e filas. Senão o coletor de lixo pode destruir o objeto fora da
     thread principal e derrubar o processo ("Tcl_AsyncDelete").
-12. **Registro do Windows só em HKCU e só sob a chave `Lotus.Converter`.**
+12. **Registro do Windows só em HKCU, só sob a chave `Lotus.Converter` e o
+    valor `Lotus.Atalho` em `...\CurrentVersion\Run`.**
     Nunca apagar chaves de outros programas. Testes no Linux usam
     `tests/fake_winreg.py`; o comportamento real é validado no CI Windows.
 13. Erro novo que o usuário pode resolver → mensagem em `core/errors.py`
     com "Como resolver". Reparo automático só quando não altera dados
     (ex.: salvar com outro nome), sempre com aviso.
+14. **Gancho de mouse:** o callback só decide e enfileira (nada de COM,
+    disco ou janela lá dentro). Eventos injetados sempre passam. Nunca usar
+    gancho de teclado (WH_KEYBOARD_LL): para tecla, só RegisterHotKey.
+15. **ctypes:** toda função da API declara `argtypes`/`restype`; toda
+    estrutura nova ganha teste de `sizeof` em `test_atalho_windows.py`.
+16. O que só um humano consegue testar (gesto real no Explorer) deve ser
+    dito como pendente, nunca como verificado.

@@ -41,6 +41,27 @@ def repair_menu(winreg_module=None, root_prefix: str = "") -> str:
     return f"Menu do botão direito: reparado ({len(problems)} problemas corrigidos)."
 
 
+def repair_autostart(winreg_module=None) -> str:
+    """Se o início automático aponta para um Lotus.exe antigo, corrige."""
+    from conversor.atalho import config, controle
+
+    cfg = config.carregar()
+    atual = controle.inicio_registrado(winreg_module)
+    if not cfg.atalho_ativo:
+        if atual:
+            controle.desativar_inicio(winreg_module)
+            return "Painel flutuante: desligado; início automático que sobrou foi removido."
+        return "Painel flutuante: desligado."
+    esperado = controle.comando_agente()
+    if atual != esperado:
+        controle.ativar_inicio(winreg_module)
+        texto = "Painel flutuante: início automático reparado"
+    else:
+        texto = "Painel flutuante: ok"
+    rodando = controle.agente_rodando() or controle.iniciar_agente()
+    return f"{texto} ({cfg.gatilho.descrever()}; {'rodando' if rodando else 'NÃO está rodando'})."
+
+
 def _writable(folder: Path) -> bool:
     try:
         folder.mkdir(parents=True, exist_ok=True)
@@ -58,6 +79,10 @@ def run(winreg_module=None, root_prefix: str = "") -> list[str]:
             report.append(repair_menu(winreg_module, root_prefix))
         except OSError as e:
             report.append(f"Menu do botão direito: erro ao acessar o registro ({e}).")
+        try:
+            report.append(repair_autostart(winreg_module))
+        except OSError as e:
+            report.append(f"Painel flutuante: erro ao acessar o registro ({e}).")
     media.ffmpeg_path.cache_clear()
     ff = media.ffmpeg_path()
     report.append(

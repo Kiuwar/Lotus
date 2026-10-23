@@ -19,9 +19,13 @@ import sys
 from conversor.logs import get_logger, log_file
 
 TITLE = "Lotus"
+_silencioso = False
 
 
 def _show(text: str, error: bool = False) -> None:
+    get_logger().info("mensagem%s: %s", " (erro)" if error else "", text)
+    if _silencioso:
+        return
     import tkinter as tk
     from tkinter import messagebox
 
@@ -47,6 +51,11 @@ def _auto_repair_menu() -> None:
 
 
 def dispatch(argv: list[str]) -> int:
+    global _silencioso
+    if "--silencioso" in argv:  # usado pelo instalador: sem caixas de mensagem
+        argv = [a for a in argv if a != "--silencioso"]
+        _silencioso = True
+
     if argv and argv[0].startswith("--menu-"):
         from conversor.gui import _enable_dpi_awareness
 
@@ -78,6 +87,34 @@ def dispatch(argv: list[str]) -> int:
 
         n = shell.uninstall()
         _show(f"Menu removido de {n} tipos de arquivo.")
+        return 0
+
+    if argv and argv[0] == "--agente":
+        from conversor.atalho.agente import executar
+
+        return executar()
+
+    if argv and argv[0] == "--ativar-atalho":
+        from conversor.atalho import controle
+
+        _show(controle.ativar())
+        return 0
+
+    if argv and argv[0] == "--desativar-atalho":
+        from conversor.atalho import controle
+
+        _show(controle.desativar())
+        return 0
+
+    if argv and argv[0] == "--desinstalar":
+        # Chamado pelo desinstalador: desfaz tudo o que o Lotus gravou no sistema.
+        from conversor import shell
+        from conversor.atalho import controle
+
+        controle.parar_agente()
+        controle.desativar_inicio()
+        n = shell.uninstall()
+        _show(f"Lotus removido do sistema (menu em {n} tipos de arquivo, atalho e início automático).")
         return 0
 
     if argv and argv[0] == "--reparar":

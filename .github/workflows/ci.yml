@@ -82,7 +82,58 @@ jobs:
           & "$dir/conversor-cli.exe" --remover-menu
           if (Test-Path $key) { throw "menu não foi removido" }
 
+      - name: Gerar o instalador (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          if (!(Test-Path $iscc)) { throw "Inno Setup não encontrado em $iscc" }
+          $ver = python -c "import conversor; print(conversor.__version__)"
+          & $iscc "/DAppVersion=$ver" installer/lotus.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC falhou" }
+          if (!(Test-Path dist/LotusSetup.exe)) { throw "LotusSetup.exe não gerado" }
+
+      - name: Testar instalação e desinstalação (como um usuário faria)
+        shell: pwsh
+        run: |
+          $app = "$env:LOCALAPPDATA\Programs\Lotus"
+          $run = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+          $menu = "HKCU:\Software\Classes\SystemFileAssociations\.png\shell\Lotus.Converter"
+          $p = Start-Process dist/LotusSetup.exe -Wait -PassThru -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/TASKS="menu,atalho"','/LOG=install.log'
+          if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "instalador saiu com $($p.ExitCode)" }
+          if (!(Test-Path "$app\Lotus.exe")) { throw "Lotus.exe não instalado em $app" }
+
+          $cmd = (Get-ItemProperty "$menu\shell\14_pdf\command").'(default)'
+          Write-Host "Menu: $cmd"
+          if ($cmd -notlike "*$app\Lotus.exe*") { throw "menu não aponta para a instalação" }
+
+          $auto = (Get-ItemProperty $run).'Lotus.Atalho'
+          Write-Host "Início automático: $auto"
+          if ($auto -notlike "*$app\Lotus.exe*--agente") { throw "início automático incorreto" }
+
+          $fim = (Get-Date).AddSeconds(20)
+          while (!(Get-Process Lotus -ErrorAction SilentlyContinue) -and (Get-Date) -lt $fim) { Start-Sleep -Milliseconds 300 }
+          if (!(Get-Process Lotus -ErrorAction SilentlyContinue)) { Get-Content "$env:LOCALAPPDATA\Lotus\lotus.log" -ErrorAction SilentlyContinue; throw "agente do painel não está rodando" }
+          Get-Content "$env:LOCALAPPDATA\Lotus\lotus.log" -Tail 10
+
+          & "$app\conversor-cli.exe" t.png --para webp --saida instalado
+          if (!(Test-Path instalado/t.webp)) { throw "conversão pelo programa instalado falhou" }
+
+          Start-Process "$app\unins000.exe" -Wait -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART'
+          $fim = (Get-Date).AddSeconds(60)
+          while ((Test-Path "$app\Lotus.exe") -and (Get-Date) -lt $fim) { Start-Sleep -Milliseconds 500 }
+          if (Test-Path "$app\Lotus.exe") { throw "desinstalação não removeu os arquivos" }
+          if (Test-Path $menu) { throw "desinstalação não removeu o menu" }
+          if ((Get-ItemProperty $run).'Lotus.Atalho') { throw "desinstalação não removeu o início automático" }
+          if (Get-Process Lotus -ErrorAction SilentlyContinue) { throw "agente continua rodando após desinstalar" }
+          Write-Host "Instalação e desinstalação: OK"
+
       - uses: actions/upload-artifact@v4
         with:
           name: Lotus-windows
           path: dist/Lotus/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LotusSetup
+          path: dist/LotusSetup.exe

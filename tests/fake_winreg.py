@@ -7,7 +7,7 @@ no Windows (tests/test_shell.py::test_real_registry_roundtrip).
 from __future__ import annotations
 
 HKEY_CURRENT_USER = "HKCU"
-KEY_WRITE = KEY_ALL_ACCESS = KEY_READ = 0
+KEY_WRITE = KEY_ALL_ACCESS = KEY_READ = KEY_SET_VALUE = 0
 REG_SZ = 1
 
 
@@ -29,6 +29,7 @@ class FakeWinreg:
     HKEY_CURRENT_USER = HKEY_CURRENT_USER
     KEY_WRITE = KEY_WRITE
     KEY_ALL_ACCESS = KEY_ALL_ACCESS
+    KEY_SET_VALUE = KEY_SET_VALUE
     REG_SZ = REG_SZ
 
     def __init__(self):
@@ -52,6 +53,11 @@ class FakeWinreg:
 
     def SetValueEx(self, key, name, reserved, typ, value):
         self.keys[key.path][name] = value
+
+    def DeleteValue(self, key, name):
+        if name not in self.keys[key.path]:
+            raise FileNotFoundError(name)
+        del self.keys[key.path][name]
 
     def QueryValueEx(self, key, name):
         if name not in self.keys[key.path]:

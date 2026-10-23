@@ -4,3 +4,5 @@ pillow==12.3.0
 openpyxl==3.1.5
 fpdf2==2.8.9
 markdown==3.11.2
+# Só no Windows: leitura da seleção do Explorer (painel flutuante). Licença PSF.
+pywin32==312; sys_platform == "win32"

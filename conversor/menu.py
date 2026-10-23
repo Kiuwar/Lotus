@@ -117,14 +117,16 @@ class Chooser(ttk.Frame):
 
     COLUMNS = 4
 
-    def __init__(self, master: tk.Tk, paths: list[str]):
+    def __init__(self, master: tk.Misc, paths: list[str]):
         super().__init__(master, padding=14)
         self.master = master
+        # Pode estar numa janela própria (menu) ou dentro do painel flutuante.
+        top = master.winfo_toplevel()
         self.paths = paths
         self.outcomes: list[Outcome] = []
         self.worker: threading.Thread | None = None
-        master.title(f"{TITLE} — converter")
-        master.resizable(False, False)
+        top.title(f"{TITLE} — converter")
+        top.resizable(False, False)
         self.pack(fill="both", expand=True)
 
         formats, problems = [], []
@@ -171,8 +173,8 @@ class Chooser(ttk.Frame):
         bar.grid(row=next_row + 3, column=0, columnspan=self.COLUMNS, sticky="e", pady=(10, 0))
         self.open_btn = ttk.Button(bar, text="Abrir pasta", state="disabled", command=self._open)
         self.open_btn.pack(side="left", padx=4)
-        ttk.Button(bar, text="Fechar", command=master.destroy).pack(side="left")
-        master.bind("<Escape>", lambda _e: master.destroy())
+        ttk.Button(bar, text="Fechar", command=top.destroy).pack(side="left")
+        top.bind("<Escape>", lambda _e: top.destroy())
 
     def start(self, target: str) -> None:
         if self.worker and self.worker.is_alive():

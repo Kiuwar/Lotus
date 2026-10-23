@@ -18,6 +18,8 @@ from PIL import Image
 
 # O log de erros dos testes vai para uma pasta temporária, não para a do usuário.
 os.environ["LOCALAPPDATA"] = tempfile.mkdtemp(prefix="lotus-test-log-")
+# Idem para a configuração do atalho (%APPDATA%\Lotus\config.json).
+os.environ["APPDATA"] = tempfile.mkdtemp(prefix="lotus-test-config-")
 
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
 

@@ -11,6 +11,23 @@ computador**, sem enviar nada para a internet.
 Lista completa e sempre atualizada: [docs/FORMATOS.md](docs/FORMATOS.md)
 (gerada a partir do código; 122 conversões, todas testadas).
 
+## Instalar no Windows
+
+1. Baixe o **LotusSetup.exe**: no GitHub, aba *Actions* → execução mais
+   recente com ✓ verde → seção *Artifacts* → **LotusSetup** (vem em .zip;
+   extraia).
+2. Execute o `LotusSetup.exe`. Não precisa de administrador: instala só
+   para o seu usuário em `%LOCALAPPDATA%\Programs\Lotus`.
+3. Como o instalador não tem assinatura digital, o Windows SmartScreen pode
+   mostrar "O Windows protegeu o computador". Clique em *Mais informações* →
+   *Executar assim mesmo*.
+4. Na instalação você escolhe: menu do botão direito, painel flutuante
+   (Ctrl+Shift+clique) e atalho na área de trabalho.
+
+Para remover: *Configurações → Aplicativos → Lotus → Desinstalar*. Isso
+também remove o menu, o painel flutuante e o início automático. Sua
+configuração (`%APPDATA%\Lotus`) e os arquivos convertidos são mantidos.
+
 ## Como usar
 
 **Interface:** abra `Lotus.exe`, clique em *Adicionar arquivos…*,
@@ -30,6 +47,22 @@ janela com um botão para cada formato possível.
 - Para remover: *Ferramentas → Remover menu do botão direito*.
 - Com vários arquivos selecionados, o Explorer abre uma conversão por
   arquivo (um aviso para cada um).
+
+**Painel flutuante (Ctrl+Shift+clique):** numa janela do Explorer, segure
+**Ctrl+Shift** e clique num arquivo: aparece, junto do cursor, um painel com
+um botão para cada formato possível. Clique no formato e pronto. *Esc* fecha.
+
+- O atalho é configurável em *Ferramentas → Atalho do painel flutuante…*:
+  qualquer combinação de Ctrl/Shift/Alt/Win com qualquer botão do mouse
+  (esquerdo, direito, meio, laterais) **ou** com uma tecla (A–Z, 0–9,
+  F1–F24). Com tecla, o painel atua nos arquivos já selecionados.
+- O app recusa atalhos que travariam o uso normal (ex.: clique esquerdo sem
+  nenhuma tecla) e avisa sobre conflitos (ex.: Ctrl+clique, que o Windows
+  usa para selecionar vários arquivos).
+- Funciona nas janelas de pastas do Explorer. **Não funciona na área de
+  trabalho** nem dentro de outros programas (lá o clique segue normal).
+- Roda em segundo plano (processo `Lotus.exe`) e inicia com o Windows
+  enquanto estiver ligado. Para desligar: desmarque a opção na mesma janela.
 
 **Linha de comando:**
 
@@ -90,6 +123,13 @@ indisponíveis (o restante funciona). Para ativar, faça **uma** das opções:
 
 O processamento é 100% local: o aplicativo não faz conexões de rede, não
 coleta dados e não tem telemetria. Os arquivos não saem do computador.
+
+O painel flutuante usa um "gancho de mouse" do Windows para perceber o
+atalho. Ele só olha botões do mouse e o estado de Ctrl/Shift/Alt/Win no
+momento do clique; **não lê o que você digita**, não grava e não envia
+nada. Quando o atalho é uma tecla, o Windows avisa o Lotus apenas daquela
+combinação (RegisterHotKey). Alguns antivírus desconfiam de programas com
+gancho de mouse; se o seu bloquear, é esse o motivo.
 O log de erros fica só no seu computador e contém nomes de arquivos; pode
 ser apagado a qualquer momento.
 

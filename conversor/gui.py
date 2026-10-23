@@ -105,8 +105,10 @@ class App(ttk.Frame):
         menubar = tk.Menu(self.master)
         tools = tk.Menu(menubar, tearoff=False)
         on_windows = "normal" if sys.platform == "win32" else "disabled"
+        on_windows_or_dev = "normal"  # a janela de configuração funciona em qualquer sistema
         tools.add_command(label="Instalar menu do botão direito", command=self.install_menu, state=on_windows)
         tools.add_command(label="Remover menu do botão direito", command=self.uninstall_menu, state=on_windows)
+        tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey, state=on_windows_or_dev)
         tools.add_separator()
         tools.add_command(label="Diagnosticar e reparar", command=self.diagnose)
         tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
@@ -130,6 +132,11 @@ class App(ttk.Frame):
         from conversor import shell
 
         self._log(f"Menu removido de {shell.uninstall()} tipos de arquivo.")
+
+    def configure_hotkey(self) -> None:
+        from conversor.atalho.janela_config import JanelaAtalho
+
+        JanelaAtalho(self.master)
 
     def diagnose(self) -> None:
         from conversor import diagnostics
