@@ -33,9 +33,11 @@ JSON_DATA = [
 
 def make_sample(fmt: str, folder: Path) -> Path:
     path = folder / f"amostra.{fmt}"
-    if fmt in {"png", "webp", "gif", "tiff", "ico"}:
+    if fmt in {"png", "webp", "gif", "tiff", "ico", "avif"}:
         im = Image.new("RGBA", (64, 48), (255, 0, 0, 128))
         im.save(path)
+    elif fmt == "heic":
+        make_heic(path, [Image.new("RGB", (64, 48), (0, 128, 255))])
     elif fmt in {"jpg", "bmp"}:
         Image.new("RGB", (64, 48), (0, 128, 255)).save(path)
     elif fmt == "csv":
@@ -84,6 +86,18 @@ def make_sample(fmt: str, folder: Path) -> Path:
         )
     else:
         raise ValueError(f"sem gerador de amostra para {fmt}: adicione em conftest.py")
+    return path
+
+
+def make_heic(path: Path, imagens: list) -> Path:
+    """HEIC real. O pillow-heif (só nos testes) tem o codificador HEVC; o app
+    usa o pi-heif, que só lê. O leitor do pillow-heif NÃO é registrado aqui,
+    para que a conversão use o mesmo leitor do app."""
+    pillow_heif = pytest.importorskip("pillow_heif", reason="pillow-heif cria as amostras HEIC")
+    heif = pillow_heif.from_pillow(imagens[0])
+    for extra in imagens[1:]:
+        heif.add_from_pillow(extra)
+    heif.save(path, quality=95)
     return path
 
 

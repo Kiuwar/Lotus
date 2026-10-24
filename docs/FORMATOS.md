@@ -2,7 +2,7 @@
 
 <!-- Arquivo GERADO por scripts/gerar_formatos.py. Não edite à mão. -->
 
-Total: **334 conversões**, todas cobertas por tests/test_matrix.py.
+Total: **358 conversões**, todas cobertas por tests/test_matrix.py.
 
 ## Apresentação
 
@@ -38,13 +38,19 @@ Observação: Texto, títulos, listas, tabelas e links (sem Word); fontes, cores
 
 | Origem | Destinos |
 |---|---|
-| BMP | GIF, ICO, JPG, PDF, PNG, TIFF, WEBP |
-| GIF | BMP, ICO, JPG, PDF, PNG, TIFF, WEBP |
-| ICO | BMP, GIF, JPG, PDF, PNG, TIFF, WEBP |
-| JPG | BMP, GIF, ICO, PDF, PNG, TIFF, WEBP |
-| PNG | BMP, GIF, ICO, JPG, PDF, TIFF, WEBP |
-| TIFF | BMP, GIF, ICO, JPG, PDF, PNG, WEBP |
-| WEBP | BMP, GIF, ICO, JPG, PDF, PNG, TIFF |
+| AVIF | BMP, GIF, ICO, JPG, PDF, PNG, TIFF, WEBP |
+| BMP | AVIF, GIF, ICO, JPG, PDF, PNG, TIFF, WEBP |
+| GIF | AVIF, BMP, ICO, JPG, PDF, PNG, TIFF, WEBP |
+| HEIC | AVIF, BMP, GIF, ICO, JPG, PDF, PNG, TIFF, WEBP |
+| ICO | AVIF, BMP, GIF, JPG, PDF, PNG, TIFF, WEBP |
+| JPG | AVIF, BMP, GIF, ICO, PDF, PNG, TIFF, WEBP |
+| PNG | AVIF, BMP, GIF, ICO, JPG, PDF, TIFF, WEBP |
+| TIFF | AVIF, BMP, GIF, ICO, JPG, PDF, PNG, WEBP |
+| WEBP | AVIF, BMP, GIF, ICO, JPG, PDF, PNG, TIFF |
+
+Observação: HEIC/HEIF só como origem (fotos do iPhone); gravar HEIC não é oferecido.
+
+Observação: Requer Pillow com suporte a AVIF (incluído no instalador).
 
 Observação: Uma página por imagem.
 

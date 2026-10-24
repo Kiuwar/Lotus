@@ -10,7 +10,7 @@ from conversor.ui.tema import GRUPOS
 
 FAMILIA = {
     "png": "Imagem", "jpg": "Imagem", "webp": "Imagem", "bmp": "Imagem",
-    "gif": "Imagem", "tiff": "Imagem", "ico": "Imagem",
+    "gif": "Imagem", "tiff": "Imagem", "ico": "Imagem", "avif": "Imagem", "heic": "Imagem",
     "pdf": "Documento", "docx": "Documento", "html": "Documento", "doc": "Documento",
     "rtf": "Documento", "odt": "Documento", "xps": "Documento",
     "pptx": "Documento", "ppt": "Documento", "odp": "Documento",

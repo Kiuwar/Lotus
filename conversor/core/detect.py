@@ -16,6 +16,8 @@ ALIASES = {
     "jpeg": "jpg",
     "jpe": "jpg",
     "tif": "tiff",
+    "heif": "heic",
+    "hif": "heic",
     "markdown": "md",
     "htm": "html",
     "aif": "aiff",
@@ -53,6 +55,29 @@ class Detection:
 def normalize_ext(name_or_ext: str) -> str:
     ext = name_or_ext.rsplit(".", 1)[-1].lower() if "." in name_or_ext else name_or_ext.lower()
     return ALIASES.get(ext, ext)
+
+
+# Marcas ISO-BMFF das imagens HEIF (ISO/IEC 23008-12) e AVIF (AV1 Image File
+# Format). "mif1"/"msf1" são genéricas: aí as marcas compatíveis decidem.
+_MARCAS_AVIF = {b"avif", b"avis"}
+_MARCAS_HEIC = {b"heic", b"heix", b"heim", b"heis", b"hevc", b"hevx"}
+_MARCAS_HEIF_GENERICAS = {b"mif1", b"msf1"}
+
+
+def _marca_heif(head: bytes) -> str | None:
+    principal = head[8:12]
+    tamanho = int.from_bytes(head[0:4], "big")
+    compativeis = {head[i:i + 4] for i in range(16, min(tamanho, len(head)) - 3, 4)}
+    if principal in _MARCAS_AVIF:
+        return "avif"
+    if principal in _MARCAS_HEIC:
+        return "heic"
+    if principal in _MARCAS_HEIF_GENERICAS:
+        if compativeis & _MARCAS_AVIF:
+            return "avif"
+        if compativeis & _MARCAS_HEIC:
+            return "heic"
+    return None
 
 
 def sniff(path: Path) -> str | None:
@@ -98,6 +123,9 @@ def sniff(path: Path) -> str | None:
         return "mpeg"  # MPEG program stream
     if head[4:8] == b"ftyp":
         brand = head[8:12]
+        imagem = _marca_heif(head)
+        if imagem:
+            return imagem
         if brand.startswith(b"M4A"):
             return "m4a"
         if brand == b"M4V ":

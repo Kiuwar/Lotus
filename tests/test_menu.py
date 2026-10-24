@@ -47,7 +47,7 @@ def test_convert_many_and_summary(sample, tmp_path):
 
 def test_chooser_shows_one_box_per_target(root, sample):
     ch = menu.Chooser(root, [str(sample("png"))])
-    assert sorted(ch.buttons) == ["bmp", "gif", "ico", "jpg", "pdf", "tiff", "webp"]
+    assert sorted(ch.buttons) == ["avif", "bmp", "gif", "ico", "jpg", "pdf", "tiff", "webp"]
 
 
 def test_chooser_intersects_multiple_files(root, sample):

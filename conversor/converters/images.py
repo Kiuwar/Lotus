@@ -1,12 +1,20 @@
-"""Conversões de imagem com Pillow."""
+"""Conversões de imagem com Pillow.
+
+AVIF: leitor e gravador do próprio Pillow (só se a build tiver libavif;
+`features.check("avif")`). HEIC/HEIF (fotos do iPhone): só LEITURA, pelo
+pi-heif (libheif + libde265, LGPL, sem codificador HEVC). Gravar HEIC exigiria
+o x265 (GPL) e não é oferecido.
+"""
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
-from PIL import Image, ImageFile, ImageOps
+from PIL import Image, ImageFile, ImageOps, features
 
 from conversor.core.registry import register
+from conversor.logs import get_logger
 
 IMAGES = ["png", "jpg", "webp", "bmp", "gif", "tiff", "ico"]
 
@@ -18,6 +26,7 @@ PIL_FORMAT = {
     "gif": "GIF",
     "tiff": "TIFF",
     "ico": "ICO",
+    "avif": "AVIF",
 }
 
 # Formatos sem canal de transparência: o fundo transparente vira branco.
@@ -88,13 +97,41 @@ def _prepare(im: Image.Image, target: str, src_name: str, options: dict) -> Imag
     return im
 
 
+@lru_cache(maxsize=1)
+def avif_disponivel() -> bool:
+    return bool(features.check("avif"))
+
+
+@lru_cache(maxsize=1)
+def heic_disponivel() -> bool:
+    try:
+        import pi_heif
+
+        pi_heif.register_heif_opener()
+    except Exception:  # noqa: BLE001 - sem o pi-heif só o HEIC fica indisponível
+        get_logger().exception("pi-heif indisponível")
+        return False
+    return True
+
+
+def _heic_pronto() -> None:
+    # O leitor HEIF é registrado no Pillow sob demanda (na 1ª conversão).
+    if not heic_disponivel():
+        raise RuntimeError("leitor de HEIC indisponível nesta instalação. "
+                           "Como resolver: reinstale o Lotus pelo instalador oficial")
+
+
+AVIF_NOTA = "Requer Pillow com suporte a AVIF (incluído no instalador)."
+HEIC_NOTA = "HEIC/HEIF só como origem (fotos do iPhone); gravar HEIC não é oferecido."
+
+
 @register(IMAGES, IMAGES, category="Imagem")
 def convert_image(src: Path, dst: Path, options: dict) -> None:
     target = dst.suffix.lstrip(".")
     im = _open(src, options)
     out = _prepare(im, target, src.name, options)
     kwargs: dict = {}
-    if target in ("jpg", "webp"):
+    if target in ("jpg", "webp", "avif"):
         kwargs["quality"] = int(options.get("quality", 90))
     if target == "ico":
         # Tamanhos padrão de ícone do Windows; o Pillow ignora os maiores que a imagem.
@@ -106,3 +143,27 @@ def convert_image(src: Path, dst: Path, options: dict) -> None:
 def image_to_pdf(src: Path, dst: Path, options: dict) -> None:
     out = _prepare(_open(src, options), "pdf", src.name, options)
     out.save(dst, format="PDF", resolution=float(options.get("dpi", 150)))
+
+
+def _foto_para_qualquer(src: Path, dst: Path, options: dict) -> None:
+    """Origem AVIF/HEIC: o mesmo caminho das outras imagens (inclusive PDF)."""
+    if dst.suffix == ".pdf":
+        image_to_pdf(src, dst, options)
+    else:
+        convert_image(src, dst, options)
+
+
+# AVIF: entra e sai (o Pillow lê e grava).
+register(["avif"], IMAGES + ["pdf"], category="Imagem", notes=AVIF_NOTA,
+         available=avif_disponivel)(_foto_para_qualquer)
+register(IMAGES, ["avif"], category="Imagem", notes=AVIF_NOTA, available=avif_disponivel)(convert_image)
+
+
+@register(["heic"], IMAGES + ["pdf"], category="Imagem", notes=HEIC_NOTA, available=heic_disponivel)
+def heic_para_imagem(src: Path, dst: Path, options: dict) -> None:
+    _heic_pronto()
+    _foto_para_qualquer(src, dst, options)
+
+
+register(["heic"], ["avif"], category="Imagem", notes=HEIC_NOTA,
+         available=lambda: heic_disponivel() and avif_disponivel())(heic_para_imagem)

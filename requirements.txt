@@ -10,6 +10,10 @@ pypdfium2==5.14.0
 # DOCX/PPTX -> texto sem Office: leitura segura do XML (já vinha com o fpdf2;
 # agora fixado por ser usado diretamente). Verificado no PyPI em 2026-10-24. Licença PSF.
 defusedxml==0.7.1
+# HEIC/HEIF (fotos do iPhone) só leitura. Verificado no PyPI em 2026-10-24: o pacote
+# é BSD-3; as bibliotecas embutidas libheif e libde265 são LGPL-3.0 (sem x265/GPL).
+# Avisos de licença em docs/LICENCAS.md.
+pi-heif==1.4.0
 # Só no Windows: leitura da seleção do Explorer (painel flutuante). Licença PSF.
 pywin32==312; sys_platform == "win32"
 # Só no Mac: gancho de mouse (Quartz Event Tap) e AppKit. Licença MIT (PyPI, 2026-10-24).

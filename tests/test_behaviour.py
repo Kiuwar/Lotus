@@ -364,3 +364,95 @@ def test_guess_delimiter(text, expected):
     from conversor.converters.data import guess_delimiter
 
     assert guess_delimiter(text) == expected
+
+
+# ---------- HEIC (fotos do iPhone) e AVIF ----------
+
+def _ftyp(principal: bytes, compativeis: list[bytes]) -> bytes:
+    corpo = principal + b"\x00\x00\x00\x00" + b"".join(compativeis)
+    return (8 + len(corpo)).to_bytes(4, "big") + b"ftyp" + corpo + b"\x00" * 16
+
+
+@pytest.mark.parametrize("principal,compativeis,esperado", [
+    (b"heic", [b"mif1", b"heic"], "heic"),   # iPhone
+    (b"mif1", [b"mif1", b"heic"], "heic"),   # HEIF genérico com HEVC
+    (b"avif", [b"avif", b"mif1"], "avif"),
+    (b"mif1", [b"mif1", b"avif"], "avif"),
+    (b"isom", [b"isom", b"mp41"], "mp4"),    # vídeo continua vídeo
+    (b"M4A ", [b"M4A "], "m4a"),
+])
+def test_heif_family_is_told_apart_from_video_by_brand(tmp_path, principal, compativeis, esperado):
+    p = tmp_path / "arquivo.bin"
+    p.write_bytes(_ftyp(principal, compativeis))
+    from conversor.core.detect import sniff
+
+    assert sniff(p) == esperado
+
+
+def test_heic_with_wrong_extension_is_still_heic(tmp_path):
+    from .conftest import make_heic
+
+    p = make_heic(tmp_path / "foto.jpg", [Image.new("RGB", (8, 8), "red")])
+    assert detect(p).fmt == "heic"
+    assert detect(make_heic(tmp_path / "foto.HEIF", [Image.new("RGB", (8, 8), "red")])).fmt == "heic"
+
+
+def test_heic_photo_to_jpg_keeps_size_and_colors(tmp_path):
+    from .conftest import make_heic
+
+    foto = Image.new("RGB", (64, 48), (220, 30, 30))
+    foto.paste((30, 30, 220), (32, 0, 64, 48))  # metade direita azul
+    src = make_heic(tmp_path / "IMG_0001.HEIC", [foto])
+    res = convert_file(src, "jpg", out_dir=tmp_path / "o")
+    with Image.open(res.output) as im:
+        assert im.format == "JPEG" and im.size == (64, 48)
+        r, g, b = im.convert("RGB").getpixel((8, 24))
+        assert r > 180 and g < 70 and b < 70, "metade esquerda vermelha"
+        r, g, b = im.convert("RGB").getpixel((56, 24))
+        assert b > 180 and r < 70 and g < 70, "metade direita azul"
+    assert not res.warnings
+
+
+def test_heic_with_several_images_warns_first_only(tmp_path):
+    from .conftest import make_heic
+
+    src = make_heic(tmp_path / "rajada.heic", [Image.new("RGB", (16, 16), c) for c in ("red", "blue")])
+    res = convert_file(src, "png", out_dir=tmp_path / "o")
+    assert any("2 quadros" in w for w in res.warnings)
+    with Image.open(res.output) as im:
+        assert im.convert("RGB").getpixel((8, 8))[0] > 200, "o primeiro quadro (vermelho)"
+
+
+def test_heic_is_never_offered_as_output():
+    assert "heic" not in {c.target for c in registry.all_converters()}
+
+
+def _avif_ok():
+    from conversor.converters.images import avif_disponivel
+
+    if not avif_disponivel():
+        pytest.skip("Pillow sem AVIF nesta máquina")
+
+
+def test_png_to_avif_and_back_keeps_transparency(tmp_path):
+    _avif_ok()
+    src = tmp_path / "logo.png"
+    im = Image.new("RGBA", (40, 30), (0, 0, 0, 0))
+    im.paste((0, 160, 60, 255), (0, 0, 20, 30))
+    im.save(src)
+    avif = convert_file(src, "avif", out_dir=tmp_path / "a").output
+    with Image.open(avif) as a:
+        assert a.format == "AVIF" and a.size == (40, 30)
+    volta = convert_file(avif, "png", out_dir=tmp_path / "b").output
+    with Image.open(volta) as v:
+        v = v.convert("RGBA")
+        assert v.getpixel((35, 15))[3] < 10, "lado transparente continua transparente"
+        r, g, b, a = v.getpixel((5, 15))
+        assert a > 245 and g > 130 and r < 40, "lado verde opaco"
+
+
+def test_avif_to_pdf_flattens_with_warning(tmp_path, sample):
+    _avif_ok()
+    res = convert_file(sample("avif"), "pdf", out_dir=tmp_path / "o")
+    assert res.output.read_bytes().startswith(b"%PDF-")
+    assert any("transparência" in w for w in res.warnings)

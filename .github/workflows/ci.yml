@@ -84,8 +84,8 @@ jobs:
       - name: Empacotar
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.ico --add-data "conversor/recursos:conversor/recursos" --paths . packaging/app_gui.py
-          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --icon conversor/recursos/lotus.ico --paths . packaging/app_cli.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.ico --add-data "conversor/recursos:conversor/recursos" --exclude-module pillow_heif --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --icon conversor/recursos/lotus.ico --exclude-module pillow_heif --paths . packaging/app_cli.py
           Copy-Item dist/conversor-cli.exe dist/Lotus/
           Copy-Item README.md, docs/FORMATOS.md dist/Lotus/
 
@@ -109,6 +109,13 @@ jobs:
           if (!(Test-Path saida_pdf/t.png)) { throw "PDF -> PNG falhou no executável" }
           & $exe saida_txt/t.pdf --para txt --saida saida_pdf
           if (!(Select-String -Path saida_pdf/t.txt -Pattern "ação" -Quiet)) { throw "PDF -> TXT sem o texto esperado" }
+          # HEIC (iPhone) e AVIF: prova que o pi-heif (libheif/libde265) e o AVIF do Pillow foram empacotados.
+          python -c "import pillow_heif; from PIL import Image; pillow_heif.from_pillow(Image.new('RGB',(32,32),(0,128,255))).save('foto.heic')"
+          & $exe foto.heic --para jpg --saida saida_heic
+          if (!(Test-Path saida_heic/foto.jpg)) { throw "HEIC -> JPG falhou no executável" }
+          & $exe t.png --para avif --saida saida_avif
+          & $exe saida_avif/t.avif --para png --saida saida_avif2
+          if (!(Test-Path saida_avif2/t.png)) { throw "PNG <-> AVIF falhou no executável" }
 
       - name: Teste do menu do botão direito (registro real do Windows)
         shell: pwsh
@@ -256,8 +263,8 @@ jobs:
       - name: Empacotar Lotus.app
         run: |
           VER=$(python -c "import conversor; print(conversor.__version__)")
-          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.icns --add-data "conversor/recursos:conversor/recursos" --osx-bundle-identifier com.kiuwar.lotus --paths . packaging/app_gui.py
-          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --paths . packaging/app_cli.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.icns --add-data "conversor/recursos:conversor/recursos" --osx-bundle-identifier com.kiuwar.lotus --exclude-module pillow_heif --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --exclude-module pillow_heif --paths . packaging/app_cli.py
           cp dist/conversor-cli dist/Lotus.app/Contents/MacOS/
           python scripts/ajustar_app_mac.py dist/Lotus.app "$VER"
           codesign --force --deep --sign - dist/Lotus.app
@@ -280,6 +287,11 @@ jobs:
           $CLI saida_txt/t.pdf --para txt --saida saida_pdf
           test -f saida/t.pdf && test -f saida_pdf/t.png
           grep -q "ação" saida_pdf/t.txt
+          # HEIC (iPhone) e AVIF empacotados (pi-heif e o AVIF do Pillow).
+          python -c "import pillow_heif; from PIL import Image; pillow_heif.from_pillow(Image.new('RGB',(32,32),(0,128,255))).save('foto.heic')"
+          $CLI foto.heic --para jpg --saida saida_heic && test -f saida_heic/foto.jpg
+          $CLI t.png --para avif --saida saida_avif && $CLI saida_avif/t.avif --para png --saida saida_avif2
+          test -f saida_avif2/t.png
 
       - name: Teste da Ação Rápida instalada pelo app
         run: |

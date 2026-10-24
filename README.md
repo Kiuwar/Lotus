@@ -17,7 +17,9 @@ Todas as versões, com o SHA-256 de cada arquivo:
 
 ## O que converte
 
-- **Imagens:** PNG, JPG, WEBP, BMP, GIF, TIFF, ICO (entre si e para PDF)
+- **Imagens:** PNG, JPG, WEBP, BMP, GIF, TIFF, ICO e AVIF (entre si e para PDF)
+- **Fotos do iPhone (HEIC/HEIF):** para JPG, PNG, PDF e as outras imagens
+  (só leitura: o Lotus não grava HEIC)
 - **PDF:** para imagens (PNG/JPG, uma por página) e para texto (TXT)
 - **Word, sem precisar do Word:** DOCX → TXT, Markdown e HTML (títulos,
   listas, tabelas e links)
@@ -237,9 +239,13 @@ também testa o `.exe` empacotado antes de publicá-lo. Para gerar localmente
 no Windows:
 
 ```
-pyinstaller --windowed --onedir --name Lotus --paths . packaging/app_gui.py
-pyinstaller --console --onefile --name conversor-cli --paths . packaging/app_cli.py
+pyinstaller --windowed --onedir --name Lotus --exclude-module pillow_heif --paths . packaging/app_gui.py
+pyinstaller --console --onefile --name conversor-cli --exclude-module pillow_heif --paths . packaging/app_cli.py
 ```
+
+O `pillow-heif` (em `requirements-dev.txt`) só cria as amostras HEIC dos
+testes; ele traz o codificador x265 (GPL) e é excluído do app empacotado.
+Licenças de terceiros: [docs/LICENCAS.md](docs/LICENCAS.md).
 
 Antes de pedir mudanças ao Claude, veja [CLAUDE.md](CLAUDE.md) e
 [docs/ANALISE.md](docs/ANALISE.md).

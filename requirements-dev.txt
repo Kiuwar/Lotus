@@ -1,3 +1,5 @@
 -r requirements.txt
 pytest==9.1.1
 pyinstaller==6.22.3
+# Só para CRIAR amostras HEIC nos testes (tem codificador x265, GPL): nunca vai no app.
+pillow-heif==1.8.1
