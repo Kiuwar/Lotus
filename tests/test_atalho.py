@@ -246,7 +246,7 @@ def test_turning_shortcut_off_keeps_agent_for_tray(monkeypatch):
     controle.ativar_inicio(wr)
     config.salvar(config.Config(config.PADRAO, atalho_ativo=True, bandeja=True))
     msg = controle.desativar(wr)
-    assert "relógio" in msg and not parou and controle.inicio_registrado(wr)
+    assert controle.onde_icone() in msg and not parou and controle.inicio_registrado(wr)
     assert config.carregar().atalho_ativo is False
     monkeypatch.setattr(controle, "iniciar_agente", lambda: True)
     controle.desativar_bandeja(wr)
