@@ -180,12 +180,12 @@ class App(ttk.Frame):
         nome_menu = "Ação Rápida do Finder" if sys.platform == "darwin" else "menu do botão direito"
         tools.add_command(label="Aparência…", command=self.configure_appearance)
         tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey)
-        if sys.platform == "win32":
+        if sys.platform in ("win32", "darwin"):
             from conversor.atalho import config as cfg_atalho
 
             self.bandeja_var = tk.BooleanVar(value=cfg_atalho.carregar().bandeja)
-            tools.add_checkbutton(label="Ícone ao lado do relógio", variable=self.bandeja_var,
-                                  command=self.toggle_tray)
+            rotulo = "Ícone na barra de menus" if sys.platform == "darwin" else "Ícone ao lado do relógio"
+            tools.add_checkbutton(label=rotulo, variable=self.bandeja_var, command=self.toggle_tray)
         tools.add_separator()
         tools.add_command(label=f"Instalar {nome_menu}", command=self.install_menu, state=suportado)
         tools.add_command(label=f"Remover {nome_menu}", command=self.uninstall_menu, state=suportado)
@@ -476,10 +476,35 @@ def _lembrete_mensal(root: tk.Tk, app: App) -> None:
         app.procurar_atualizacao(ja_autorizado=True)
 
 
+def _preparar_mac() -> None:
+    """Mac, em thread (só dados; regra 11): na 1ª abertura instala a Ação Rápida
+    (funciona sem permissões); sempre, liga o agente se o ícone da barra de menus
+    ou o painel estiver ligado (inclusive depois de uma atualização)."""
+    from conversor import acao_rapida
+    from conversor.atalho import config, controle
+
+    log = get_logger()
+    cfg = config.carregar()
+    if not cfg.guia_mac_visto:
+        try:
+            if not acao_rapida.instalada():
+                acao_rapida.instalar()
+                log.info("Ação Rápida instalada na 1ª abertura")
+        except Exception:  # noqa: BLE001
+            log.exception("instalar a Ação Rápida na 1ª abertura")
+    try:
+        if controle.precisa_rodar(cfg) and not controle.agente_rodando():
+            controle.ativar_inicio()
+            controle.iniciar_agente()
+    except Exception:  # noqa: BLE001
+        log.exception("ligar o agente do Mac")
+
+
 def _guia_na_primeira_vez(root: tk.Tk, app: App) -> None:
-    """Mac: na 1ª abertura, a janela "Ativar o painel" (o painel vem desligado)."""
+    """Mac: na 1ª abertura, a janela "Ativar o Lotus no Mac" (o painel vem desligado)."""
     from conversor.atalho import config
 
+    threading.Thread(target=_preparar_mac, daemon=True).start()
     cfg = config.carregar()
     if cfg.guia_mac_visto:
         return

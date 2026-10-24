@@ -61,7 +61,7 @@ def repair_autostart(winreg_module=None) -> str:
     rodando = controle.agente_rodando() or controle.iniciar_agente()
     partes = [cfg.gatilho.descrever() if cfg.atalho_ativo else "atalho desligado"]
     if cfg.bandeja and controle.BANDEJA_SUPORTADA:
-        partes.append("ícone ao lado do relógio")
+        partes.append(f"ícone {controle.onde_icone()}")
     partes.append("rodando" if rodando else "NÃO está rodando")
     return f"{texto} ({'; '.join(partes)})."
 

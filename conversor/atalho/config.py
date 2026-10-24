@@ -155,7 +155,7 @@ def arquivo_config() -> Path:
 class Config:
     gatilho: Gatilho = PADRAO
     atalho_ativo: bool = False
-    # Ícone ao lado do relógio (só Windows). Ligado por padrão.
+    # Ícone ao lado do relógio (Windows) ou na barra de menus (Mac). Ligado por padrão.
     bandeja: bool = True
     # Mac: a janela "Ativar o painel" já foi mostrada na 1ª abertura.
     guia_mac_visto: bool = False

@@ -19,24 +19,26 @@ from conversor.atalho import ativacao_mac as am
 from conversor.atalho import config, mac
 
 NOVO = {"atalho_ativo": False, "agente_rodando": False, "ax_confiavel": False,
-        "estado_agente": None, "automacao": None}
+        "estado_agente": None, "automacao": None, "acao_rapida": False}
 PRONTO = {"atalho_ativo": True, "agente_rodando": True, "ax_confiavel": True,
-          "estado_agente": {"gancho_ok": True}, "automacao": "ok"}
+          "estado_agente": {"gancho_ok": True}, "automacao": "ok", "acao_rapida": True}
 
 
 # ---------- passos ----------
 
 def test_fresh_install_shows_three_pending_steps_with_buttons():
     p = am.passos(NOVO)
-    assert [x.feito for x in p] == [False, False, False]
-    assert [x.acao for x in p] == ["ligar", "acessibilidade", "testar_finder"]
+    assert [x.feito for x in p] == [False] * 5
+    assert [x.acao for x in p] == ["ligar", "acessibilidade", "testar_finder", "acao_rapida", "teclado"]
+    assert p[4].opcional and "Serviços → Arquivos e Pastas" in p[4].explicacao
     assert "Privacidade e Segurança → Acessibilidade" in p[1].explicacao
     assert am.resumo(NOVO) == ("Painel por atalho: desligado — clique para ativar", "desligado")
 
 
 def test_everything_done():
     p = am.passos(PRONTO)
-    assert am.tudo_pronto(p) and not any(x.botao for x in p)
+    assert am.tudo_pronto(p), "o passo 5 (opcional) não impede o 'tudo pronto'"
+    assert [x.botao for x in p if x.botao] == ["Abrir Teclado"]
     assert am.resumo(PRONTO) == ("Painel por atalho: pronto ✓", "ok")
 
 
@@ -198,10 +200,13 @@ def test_window_updates_itself_and_runs_actions(root):
     estado.update(atalho_ativo=True, agente_rodando=True, ax_confiavel=True,
                   estado_agente={"gancho_ok": True})
     botoes[2].invoke()  # testar o Finder: a resposta chega pela fila
+    estado["acao_rapida"] = True
     j.atualizar_ja()
-    assert [linha[0].cget("text") for linha in j.linhas] == ["✓", "✓", "✓"]
+    assert [linha[0].cget("text") for linha in j.linhas] == ["✓", "✓", "✓", "✓", "5"]
     assert "Tudo pronto" in j.rodape.cget("text")
-    assert not any(b.winfo_manager() for b in botoes), "passos prontos não têm botão"
+    assert [b.winfo_manager() for b in botoes] == ["", "", "", "", "pack"], "só o opcional tem botão"
+    botoes[4].invoke()
+    assert abertos == ["acessibilidade", "teclado"]
     j.fechar()
     root.update()
 

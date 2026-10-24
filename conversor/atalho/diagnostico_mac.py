@@ -104,6 +104,8 @@ def avaliar(f: dict) -> list[Item]:
         if f.get("agente_rodando"):
             itens.append(Item(ATENCAO, "O agente em execução não deixou relatório (versão anterior "
                               "do Lotus ainda rodando).", "Desligue e ligue de novo o painel."))
+    elif est.get("gancho_ok") is None:
+        pass  # painel desligado: o agente roda só pelo ícone da barra de menus (item 1 já explica)
     elif est.get("gancho_ok"):
         itens.append(Item(OK, f"O agente instalou o gancho de cliques às {est.get('inicio', '?')}."))
     else:

@@ -72,20 +72,29 @@ configuração (`%APPDATA%\Lotus`) e os arquivos convertidos são mantidos.
 2. Abra o `.dmg` e arraste o **Lotus** para **Aplicativos**.
 3. Na 1ª abertura o macOS bloqueia apps sem assinatura paga da Apple:
    **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**.
-4. **Ative o painel por atalho (⌥ Option+⇧ Shift+clique)**: na primeira
-   vez que você abre o Lotus, a janela **Ativar o painel no Mac** mostra 3
-   passos, cada um com um botão, e marca ✓ sozinha conforme você avança:
-   1. **Ligar agora** (o painel vem desligado);
+4. Na primeira vez que você abre o Lotus, ele já instala a **Ação Rápida** do
+   Finder (clique direito num arquivo → **Ações Rápidas → Converter com
+   Lotus**, sem nenhuma permissão) e põe o **ícone da flor na barra de menus**
+   (no alto da tela). Pelo ícone: *Converter os arquivos selecionados no
+   Finder…* — também sem a permissão de Acessibilidade.
+5. A janela **Ativar o Lotus no Mac** mostra os passos, cada um com um botão,
+   e marca ✓ sozinha conforme você avança:
+   1. **Ligar agora** o painel por atalho (⌥ Option+⇧ Shift+clique; vem
+      desligado);
    2. **Abrir Acessibilidade** → ative o **Lotus** (o Lotus tenta de novo
       sozinho a cada 2 segundos; não é preciso desligar e ligar o painel);
    3. **Testar o Finder** → quando o Mac perguntar se o Lotus pode controlar
       o "Finder", clique em **Permitir** (o Lotus só lê quais arquivos estão
-      selecionados).
-   Para reabrir: *Ferramentas → Ativar o painel no Mac…* ou clique na linha
-   "Painel por atalho: …" no pé da janela principal.
-5. Clique direito: *Ferramentas → Instalar Ação Rápida do Finder*; depois,
-   no Finder, clique direito num arquivo → **Ações Rápidas → Converter com
-   Lotus**.
+      selecionados);
+   4. **Ação Rápida** (já instalada na 1ª abertura);
+   5. *(opcional)* **Atalho de teclado para a Ação Rápida**, sem permissões:
+      *Teclado → Atalhos de Teclado… → Serviços → Arquivos e Pastas →
+      "Converter com Lotus"*, clique duas vezes à direita e aperte, por
+      exemplo, ⌃⌥C.
+   Para reabrir: *Ferramentas → Ativar o painel no Mac…*, o ícone da barra de
+   menus, ou a linha "Painel por atalho: …" no pé da janela principal.
+   Para tirar o ícone da barra de menus: *Ferramentas → Ícone na barra de
+   menus* (ou pelo próprio menu do ícone).
 
 **⌥ Option+⇧ Shift+clique não faz nada?** Abra o Lotus → *Ferramentas →
 Diagnóstico do painel flutuante (Mac)…*. Ele mostra, item por item, o que

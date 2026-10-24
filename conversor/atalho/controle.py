@@ -22,8 +22,13 @@ RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALOR = "Lotus.Atalho"
 
 
-# O ícone ao lado do relógio existe só no Windows (no Mac não foi pedido).
-BANDEJA_SUPORTADA = sys.platform == "win32"
+# Ícone do Lotus: ao lado do relógio (Windows, bandeja.py) ou na barra de
+# menus (Mac, barra_mac.py). A configuração é a mesma (`cfg.bandeja`).
+BANDEJA_SUPORTADA = sys.platform in ("win32", "darwin")
+
+
+def onde_icone() -> str:
+    return "na barra de menus" if sys.platform == "darwin" else "ao lado do relógio"
 
 
 def precisa_rodar(cfg: config.Config) -> bool:
@@ -162,7 +167,7 @@ def desativar(winreg_module=None) -> str:
     config.salvar(cfg)
     if precisa_rodar(cfg):
         # O agente segue rodando pelo ícone; ele relê a configuração e tira o gancho.
-        return "Painel flutuante desligado (o Lotus continua ao lado do relógio)."
+        return f"Painel flutuante desligado (o Lotus continua {onde_icone()})."
     desativar_inicio(winreg_module)
     parar_agente()
     return "Painel flutuante desligado."
@@ -181,10 +186,10 @@ def ativar_bandeja(winreg_module=None) -> str:
     cfg.bandeja = True
     config.salvar(cfg)
     if not BANDEJA_SUPORTADA:
-        return "O ícone ao lado do relógio existe só no Windows."
+        return "O ícone do Lotus existe só no Windows e no Mac."
     ativar_inicio(winreg_module)
     ok = iniciar_agente()
-    return "Lotus ao lado do relógio: " + ("ligado." if ok else "configurado, mas não iniciou (veja o log).")
+    return f"Lotus {onde_icone()}: " + ("ligado." if ok else "configurado, mas não iniciou (veja o log).")
 
 
 def desativar_bandeja(winreg_module=None) -> str:
@@ -192,7 +197,7 @@ def desativar_bandeja(winreg_module=None) -> str:
     cfg.bandeja = False
     config.salvar(cfg)
     if precisa_rodar(cfg):
-        return "Ícone ao lado do relógio desligado (o painel por atalho continua ligado)."
+        return f"Ícone {onde_icone()} desligado (o painel por atalho continua ligado)."
     desativar_inicio(winreg_module)
     parar_agente()
-    return "Ícone ao lado do relógio desligado."
+    return f"Ícone {onde_icone()} desligado."

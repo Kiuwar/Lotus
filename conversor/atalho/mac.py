@@ -51,6 +51,7 @@ NOMES_QUARTZ = [
     "kCGMouseButtonLeft", "kCGEventFlagMaskControl", "kCGEventFlagMaskShift",
     "kCGEventFlagMaskAlternate", "kCGEventFlagMaskCommand", "CGWindowListCopyWindowInfo",
     "kCGWindowListOptionOnScreenOnly", "kCGNullWindowID", "kCGWindowBounds", "kCGWindowOwnerPID",
+    "CGEventCreate",
 ]
 
 
@@ -365,19 +366,35 @@ def clicar_simples(x: int, y: int) -> None:
         Q.CGEventPost(Q.kCGHIDEventTap, ev)
 
 
+def posicao_mouse() -> tuple[int, int]:
+    """Onde está o ponteiro (coordenadas do Quartz, origem no canto superior esquerdo)."""
+    import Quartz as Q
+
+    p = Q.CGEventGetLocation(Q.CGEventCreate(None))
+    return round(p.x), round(p.y)
+
+
 def trabalhador(trabalho: queue.Queue, saida: queue.Queue) -> None:
+    """("mouse", 0, x, y, mods): clique com o atalho (seleciona o item clicado e lê).
+    ("selecao", x, y): menu da barra de menus (lê o que já está selecionado)."""
     log = get_logger()
     while True:
         item = trabalho.get()
         if item is None:
             return
-        _, _, x, y, _ = item
         try:
-            clicar_simples(x, y)       # seleciona só o item clicado (como no Windows)
-            time.sleep(0.15)
+            if item[0] == "selecao":
+                _, x, y = item
+            else:
+                _, _, x, y, _ = item
+                clicar_simples(x, y)   # seleciona só o item clicado (como no Windows)
+                time.sleep(0.15)
             arquivos = [c for c in ler_selecao_finder() if os.path.isfile(c)]
             if arquivos:
                 saida.put(("painel", arquivos, x, y))
+            elif item[0] == "selecao":
+                saida.put(("aviso", "Selecione um ou mais arquivos no Finder e escolha de novo "
+                                    "\"Converter os arquivos selecionados no Finder…\"."))
         except PermissionError as e:
             saida.put(("aviso", str(e)))
         except Exception:
@@ -385,10 +402,14 @@ def trabalhador(trabalho: queue.Queue, saida: queue.Queue) -> None:
 
 
 def executar() -> int:
-    """`Lotus --agente` no Mac."""
+    """`Lotus --agente` no Mac: gancho de cliques (se o painel estiver ligado) e
+    ícone na barra de menus (se ligado). Relê a configuração sozinho: ligar ou
+    desligar no app vale na hora, sem reiniciar o agente."""
     import tkinter as tk
     from tkinter import messagebox
 
+    from conversor import shell
+    from conversor.atalho import controle
     from conversor.atalho.painel import abrir_painel
 
     log = get_logger()
@@ -398,16 +419,10 @@ def executar() -> int:
         return 0
     parada_pedida()  # descarta sinal antigo
 
-    cfg = config.carregar()
     trabalho: queue.Queue = queue.Queue()
     saida: queue.Queue = queue.Queue()
     cliques: queue.Queue = queue.Queue()
-    gancho = GanchoMac(cfg.gatilho, trabalho, cliques, avisos=saida)
-    gancho.start()
-    gancho.pronto.wait(5)
-    gravar_estado_agente(gancho.erro is None and gancho.pronto.is_set(),
-                         gancho.erro or (None if gancho.pronto.is_set() else "o gancho não respondeu em 5 s"),
-                         ax_confiavel())
+    comandos: queue.Queue = queue.Queue()
     threading.Thread(target=trabalhador, args=(trabalho, saida), daemon=True).start()
 
     root = tk.Tk()
@@ -420,7 +435,16 @@ def executar() -> int:
         NSApplication.sharedApplication().setActivationPolicy_(NSApplicationActivationPolicyAccessory)
     except Exception:
         log.exception("não foi possível esconder o ícone do Dock")
-    estado = {"painel": None, "guia": None, "reiniciar": False}
+    estado = {"painel": None, "guia": None, "ajuda": None, "reiniciar": False, "gancho": None,
+              "barra": None, "cfg": None, "mtime": None, "ticks": 0}
+
+    def trazer_app() -> None:
+        try:
+            from AppKit import NSApplication
+
+            NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+        except Exception:
+            log.exception("não foi possível trazer o Lotus para a frente")
 
     def mostrar_guia() -> None:
         # Antes era um aviso que podia ficar escondido atrás das janelas (o agente
@@ -429,25 +453,123 @@ def executar() -> int:
 
         g = estado["guia"]
         if g is not None and not g.fechado:
+            g.lift()
             return
-        try:
-            from AppKit import NSApplication
-
-            NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
-        except Exception:
-            log.exception("não foi possível trazer o Lotus para a frente")
+        trazer_app()
         estado["guia"] = janela_ativacao.abrir(root)
 
-    if gancho.erro:
-        mostrar_guia()
+    def mostrar_ajuda() -> None:
+        from conversor.ui import janela_ajuda
+
+        a = estado["ajuda"]
+        if a is not None and a.winfo_exists():
+            a.lift()
+            return
+        trazer_app()
+        estado["ajuda"] = janela_ajuda.abrir(root, acoes={"Ativar o painel no Mac…": mostrar_guia})
+
+    def ligar_gancho(cfg: config.Config) -> None:
+        g = GanchoMac(cfg.gatilho, trabalho, cliques, avisos=saida)
+        g.start()
+        g.pronto.wait(5)
+        estado["gancho"] = g
+        gravar_estado_agente(g.erro is None and g.pronto.is_set(),
+                             g.erro or (None if g.pronto.is_set() else "o gancho não respondeu em 5 s"),
+                             ax_confiavel())
+        if g.erro:
+            mostrar_guia()
+
+    def desligar_gancho() -> None:
+        g = estado["gancho"]
+        if g is not None:
+            g.parar()
+            estado["gancho"] = None
+        gravar_estado_agente(None, "painel por atalho desligado", ax_confiavel())
+
+    def icone() -> str:
+        from conversor.ui.icone import RECURSOS
+
+        return str(RECURSOS / "lotus.png")
+
+    def aplicar(cfg: config.Config) -> None:
+        anterior = estado["cfg"]
+        estado["cfg"] = cfg
+        g = estado["gancho"]
+        if cfg.atalho_ativo and g is None:
+            ligar_gancho(cfg)
+        elif not cfg.atalho_ativo and g is not None:
+            desligar_gancho()
+        elif cfg.atalho_ativo and anterior is not None and cfg.gatilho != anterior.gatilho:
+            g.recarregar(cfg.gatilho)
+        elif not cfg.atalho_ativo and anterior is None:
+            gravar_estado_agente(None, "painel por atalho desligado", ax_confiavel())
+        b = estado["barra"]
+        try:
+            if cfg.bandeja and b is None:
+                from conversor.atalho.barra_mac import BarraMac
+
+                estado["barra"] = BarraMac(comandos, icone(), cfg.atalho_ativo, cfg.gatilho.descrever())
+            elif not cfg.bandeja and b is not None:
+                b.remover()
+                estado["barra"] = None
+            elif b is not None:
+                b.atualizar(cfg.atalho_ativo, cfg.gatilho.descrever())
+        except Exception:
+            log.exception("ícone na barra de menus")
+
+    def reler_config() -> bool:
+        """True se o agente ainda precisa rodar."""
+        try:
+            mtime = config.arquivo_config().stat().st_mtime
+        except OSError:
+            mtime = None
+        if estado["cfg"] is not None and mtime == estado["mtime"]:
+            return True
+        estado["mtime"] = mtime
+        cfg = config.carregar()
+        if not controle.precisa_rodar(cfg):
+            return False
+        aplicar(cfg)
+        return True
+
+    def comando(cmd: str) -> None:
+        from conversor.atalho import barra_mac as bm
+
+        if cmd == bm.CONVERTER:
+            x, y = posicao_mouse()
+            trabalho.put(("selecao", x, y))
+        elif cmd == bm.ABRIR:
+            subprocess.Popen(shell.launcher_command(), start_new_session=True, close_fds=True)
+        elif cmd == bm.ATALHO:
+            controle.alternar_atalho()  # o reler_config aplica na hora
+        elif cmd == bm.ATIVAR:
+            mostrar_guia()
+        elif cmd == bm.AJUDA:
+            mostrar_ajuda()
+        elif cmd == bm.SAIR:
+            # Não usa controle.desativar_bandeja(): ela esperaria este mesmo agente
+            # parar (travaria o menu). Grava e deixa o reler_config encerrar.
+            cfg = config.carregar()
+            cfg.bandeja = False
+            config.salvar(cfg)
+            if not controle.precisa_rodar(cfg):
+                controle.desativar_inicio()
 
     def tick() -> None:
         if parada_pedida():
             root.destroy()
             return
+        estado["ticks"] += 1
+        if estado["ticks"] % 20 == 0 and not reler_config():  # ~1 s
+            log.info("agente (Mac): nada mais ligado; encerrando")
+            root.destroy()
+            return
+        while not comandos.empty():
+            comando(comandos.get_nowait())
         while not saida.empty():
             msg = saida.get_nowait()
             if msg[0] == "aviso":
+                trazer_app()
                 messagebox.showwarning("Lotus", msg[1])
                 continue
             if msg[0] == "gancho_ok":
@@ -462,21 +584,35 @@ def executar() -> int:
                 estado["painel"].destroy()
             while not cliques.empty():
                 cliques.get_nowait()
+            trazer_app()
             estado["painel"] = abrir_painel(root, arquivos, x, y)
-        p = estado["painel"]
-        if p is not None and not p.fechado:
-            gancho.painel_aberto.set()
-            while not cliques.empty():
-                p.clique_global(*cliques.get_nowait())
-        else:
-            gancho.painel_aberto.clear()
+        p, g = estado["painel"], estado["gancho"]
+        if g is not None:
+            if p is not None and not p.fechado:
+                g.painel_aberto.set()
+                while not cliques.empty():
+                    p.clique_global(*cliques.get_nowait())
+            else:
+                g.painel_aberto.clear()
         root.after(50, tick)
 
+    if not reler_config():
+        log.info("agente (Mac): painel e ícone desligados; nada a fazer")
+        root.destroy()
+        trabalho.put(None)
+        trava.close()
+        return 0
     root.after(50, tick)
     try:
         root.mainloop()
     finally:
-        gancho.parar()
+        if estado["gancho"] is not None:
+            estado["gancho"].parar()
+        if estado["barra"] is not None:
+            try:
+                estado["barra"].remover()
+            except Exception:
+                log.exception("remover o ícone da barra de menus")
         trabalho.put(None)
         trava.close()
     if estado["reiniciar"]:

@@ -25,7 +25,10 @@ from dataclasses import dataclass
 URL_ACESSIBILIDADE = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
 URL_AUTOMACAO = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
 URL_PRIVACIDADE = "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension"
-URLS = {"acessibilidade": URL_ACESSIBILIDADE, "automacao": URL_AUTOMACAO}
+# Teclado (mesma lista). Não há endereço documentado para "Atalhos de Teclado"; o
+# caminho até Serviços aparece escrito no passo 5.
+URL_TECLADO = "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
+URLS = {"acessibilidade": URL_ACESSIBILIDADE, "automacao": URL_AUTOMACAO, "teclado": URL_TECLADO}
 
 # Depois de abrir os Ajustes, quanto esperar até sugerir "remover (−) e adicionar (+)".
 ESPERA_PERMISSAO_VELHA = 20.0
@@ -38,8 +41,9 @@ class Passo:
     feito: bool
     explicacao: str
     botao: str = ""        # rótulo do botão ("" = sem botão)
-    acao: str = ""         # "ligar" | "acessibilidade" | "testar_finder" | "automacao"
+    acao: str = ""         # "ligar" | "acessibilidade" | "testar_finder" | "automacao" | "acao_rapida" | "teclado"
     dica: str = ""         # ajuda extra (ex.: permissão de versão anterior)
+    opcional: bool = False  # não conta para "tudo pronto"
 
 
 def passos(e: dict) -> list[Passo]:
@@ -88,11 +92,22 @@ def passos(e: dict) -> list[Passo]:
                    "O Mac vai perguntar se o Lotus pode controlar o \"Finder\": clique em Permitir. "
                    "O Lotus só lê quais arquivos estão selecionados.",
                    "Testar o Finder", "testar_finder")
-    return [p1, p2, p3]
+    instalada = bool(e.get("acao_rapida"))
+    p4 = Passo(4, "Ação Rápida no clique direito", instalada,
+               "Instalada: no Finder, clique direito num arquivo → Ações Rápidas → Converter com "
+               "Lotus. Funciona sem nenhuma permissão." if instalada else
+               "Converte pelo clique direito do Finder, sem nenhuma permissão.",
+               "" if instalada else "Instalar", "" if instalada else "acao_rapida")
+    p5 = Passo(5, "Atalho de teclado para a Ação Rápida (opcional)", False,
+               "Selecione arquivos no Finder e aperte uma tecla, sem permissões extras: em "
+               "Teclado → Atalhos de Teclado… → Serviços → Arquivos e Pastas → \"Converter com "
+               "Lotus\", clique duas vezes à direita e aperte a combinação (ex.: ⌃⌥C).",
+               "Abrir Teclado", "teclado", opcional=True)
+    return [p1, p2, p3, p4, p5]
 
 
 def tudo_pronto(lista: list[Passo]) -> bool:
-    return all(p.feito for p in lista)
+    return all(p.feito for p in lista if not p.opcional)
 
 
 def resumo(e: dict) -> tuple[str, str]:
@@ -100,7 +115,7 @@ def resumo(e: dict) -> tuple[str, str]:
     if not e.get("atalho_ativo"):
         return "Painel por atalho: desligado — clique para ativar", "desligado"
     lista = passos(e)
-    pendentes = [p for p in lista if not p.feito]
+    pendentes = [p for p in lista if not p.feito and not p.opcional and p.numero <= 3]
     if not pendentes:
         return "Painel por atalho: pronto ✓", "ok"
     return f"Painel por atalho: falta {pendentes[0].titulo.lower()} — clique para ver", "aviso"
@@ -130,4 +145,14 @@ def coletar_estado(automacao: str | None = None) -> dict:
         "ax_confiavel": mac.ax_confiavel(),
         "estado_agente": mac.ler_estado_agente(),
         "automacao": automacao,
+        "acao_rapida": _acao_rapida_instalada(),
     }
+
+
+def _acao_rapida_instalada() -> bool:
+    from conversor import acao_rapida
+
+    try:
+        return acao_rapida.instalada()
+    except Exception:  # noqa: BLE001
+        return False

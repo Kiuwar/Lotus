@@ -1,4 +1,5 @@
-"""Janela "Ativar o painel no Mac": 3 passos que se atualizam sozinhos.
+"""Janela "Ativar o painel no Mac": passos que se atualizam sozinhos (3 do
+painel por atalho, a Ação Rápida e, opcional, o atalho de teclado dela).
 
 Aberta na 1ª vez que o Lotus abre no Mac, pelo indicador da janela principal,
 por Ferramentas e pelo agente quando o gancho de cliques falha.
@@ -36,9 +37,20 @@ def _testar_finder(fila: queue.Queue) -> None:
     fila.put(("automacao", testar_automacao(limite=60)))
 
 
+def _instalar_acao_rapida(fila: queue.Queue) -> None:
+    from conversor import acao_rapida
+
+    try:
+        acao_rapida.instalar()
+        fila.put(("mensagem", "Ação Rápida instalada."))
+    except Exception as e:  # noqa: BLE001
+        fila.put(("mensagem", f"Não foi possível instalar a Ação Rápida: {e}"))
+
+
 ACOES_PADRAO = {
     "ligar": lambda fila: threading.Thread(target=_ligar, args=(fila,), daemon=True).start(),
     "testar_finder": lambda fila: threading.Thread(target=_testar_finder, args=(fila,), daemon=True).start(),
+    "acao_rapida": lambda fila: threading.Thread(target=_instalar_acao_rapida, args=(fila,), daemon=True).start(),
 }
 
 
@@ -59,12 +71,12 @@ class JanelaAtivacao(tk.Toplevel):
 
         f = ttk.Frame(self, padding=18)
         f.pack(fill="both", expand=True)
-        ttk.Label(f, text="Ative o painel por atalho em 3 passos",
+        ttk.Label(f, text="Ative o Lotus no Mac",
                   font=("Helvetica", 15, "bold")).pack(anchor="w")
         ttk.Label(f, text="Esta janela se atualiza sozinha. Nada sai do seu Mac.",
                   foreground="#555").pack(anchor="w", pady=(2, 12))
         self.linhas = []
-        for _ in range(3):
+        for _ in range(5):
             linha = ttk.Frame(f)
             linha.pack(fill="x", pady=6)
             marca = ttk.Label(linha, text="", width=2, font=("Helvetica", 16, "bold"))
@@ -128,7 +140,7 @@ class JanelaAtivacao(tk.Toplevel):
         self._pendente = self.after(INTERVALO_MS, self.atualizar)
 
     def executar(self, acao: str) -> None:
-        if acao in ("acessibilidade", "automacao"):
+        if acao in ("acessibilidade", "automacao", "teclado"):
             self.ajustes_abertos_em = time.monotonic()
             if not self.abrir(acao):
                 self.rodape.configure(text="Não foi possível abrir os Ajustes do Sistema. Abra-os pelo "
