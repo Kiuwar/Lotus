@@ -166,3 +166,43 @@ def _sem_dialogos_reais(monkeypatch):
     for mod, funcs in _DIALOGOS.items():
         for nome, resposta in funcs:
             monkeypatch.setattr(modulos[mod], nome, falso(nome, resposta))
+
+
+# ---------- erros do Tcl em segundo plano ----------
+# Erro num script Tcl de evento (after, binding) chama o comando `bgerror`;
+# o padrão do Tk (bgerror.tcl, carregado sob demanda) abre um diálogo com
+# grab + vwait que trava o teste dentro do update() — no Mac isso apareceu
+# como travamento sem nenhuma linha Python na pilha. Aqui o `bgerror` é
+# nosso: registra a mensagem e a pilha Tcl, e o teste falha mostrando-as.
+ERROS_TCL: list[str] = []
+
+try:
+    import tkinter as _tk
+except ImportError:  # pragma: no cover
+    _tk = None
+
+if _tk is not None:
+    _tk_init_original = _tk.Tk.__init__
+
+    def _tk_init_com_bgerror(self, *args, **kwargs):
+        _tk_init_original(self, *args, **kwargs)
+
+        def bgerror(msg):
+            try:
+                pilha = self.tk.globalgetvar("errorInfo")
+            except _tk.TclError:
+                pilha = ""
+            ERROS_TCL.append(f"{msg}\n{pilha}")
+            print(f"[bgerror do Tk] {msg}\n{pilha}", file=sys.stderr)
+
+        self.tk.createcommand("bgerror", bgerror)
+
+    _tk.Tk.__init__ = _tk_init_com_bgerror
+
+
+@pytest.fixture(autouse=True)
+def _sem_erros_tcl():
+    ERROS_TCL.clear()
+    yield
+    erros, ERROS_TCL[:] = list(ERROS_TCL), []
+    assert not erros, "erro do Tcl em segundo plano:\n" + "\n---\n".join(erros)

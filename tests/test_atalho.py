@@ -51,6 +51,7 @@ def test_dangerous_or_invalid_triggers_are_rejected(g):
         (Gatilho(frozenset({"win", "alt"}), "mouse", "meio"), "Win"),
     ],
 )
+@pytest.mark.skipif(sys.platform == "darwin", reason="avisos do Mac: test_mac.py")
 def test_conflicting_triggers_warn_but_are_allowed(g, aviso):
     erros, avisos = config.validar(g)
     assert not erros and any(aviso in a for a in avisos)
@@ -253,6 +254,39 @@ def test_floating_panel_groups_formats_and_converts(root, sample):
     assert "ação" in (src.parent / "amostra.txt").read_text(encoding="utf-8")
 
 
+def test_closed_panel_leaves_no_pending_callbacks(root, sample):
+    """Fechar o painel cancela os `after` pendentes; senão o Tcl dispara
+    comandos apagados e o Tk abre o diálogo de erro (no Mac, modal: travava)."""
+    import time
+
+    from conversor.atalho.painel import Painel
+
+    p = Painel(root, [str(sample("png"))], 400, 300)
+    root.update()
+    assert p._afters, "painel aberto acompanha o cursor e conta o tempo ocioso"
+    p.destroy()
+    assert not p._afters
+    fim = time.time() + 0.5
+    while time.time() < fim:  # tempo para qualquer after esquecido disparar
+        root.update()
+        time.sleep(0.02)
+    # a fixture _sem_erros_tcl (conftest) falha o teste se algum disparou
+
+
+def test_tcl_background_errors_go_to_log_not_dialog(root):
+    from conversor import logs
+
+    root.tk.deletecommand("bgerror")  # tira o da fixture: testa o do app
+    logs.registrar_erros_tcl(root)
+    root.tk.eval("after 1 {error {erro de teste do Tcl}}")
+
+    def no_log():
+        f = logs.log_file()
+        return f.exists() and "erro de teste do Tcl" in f.read_text(encoding="utf-8")
+
+    _esperar(root, no_log, limite=5)
+
+
 def test_panel_closes_on_center_escape_and_outside_click(root, sample):
     from conversor.atalho.painel import Painel
     from conversor.ui import radial
@@ -348,7 +382,7 @@ def test_config_window_blocks_dangerous_and_saves(root, monkeypatch):
     j.tecla.set("F7")
     j.atualizar()
     assert str(j.salvar_btn["state"]) == "normal"
-    assert j.resumo["text"] == "Atalho: Alt+F7"
+    assert j.resumo["text"] == f"Atalho: {config.NOME_MOD['alt']}+F7"
     j.salvar()
     assert config.carregar().gatilho == Gatilho(frozenset({"alt"}), "tecla", tecla="F7")
     config.salvar(config.Config())  # volta ao padrão para os outros testes

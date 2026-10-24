@@ -90,7 +90,11 @@ import sys, json
 sys.platform = "darwin"
 from conversor.atalho import config as c
 _, avisos_cmd = c.validar(c.Gatilho(frozenset({"win"}), "mouse", "esquerdo"))
+_, avisos_ctrl = c.validar(c.Gatilho(frozenset({"ctrl"}), "mouse", "esquerdo"))
+_, avisos_cmd_c = c.validar(c.Gatilho(frozenset({"win"}), "tecla", tecla="C"))
+_, avisos_win = c.validar(c.Gatilho(frozenset({"win", "alt"}), "mouse", "meio"))
 print(json.dumps({
+    "avisos_ctrl": avisos_ctrl, "avisos_cmd_c": avisos_cmd_c, "avisos_win": avisos_win,
     "mods": sorted(c.PADRAO.modificadores),
     "descricao": c.PADRAO.descrever(),
     "avisos_cmd": avisos_cmd,
@@ -104,6 +108,9 @@ print(json.dumps({
     assert d["descricao"] == "⇧ Shift+⌥ Option+clique esquerdo"
     assert any("Finder" in a and "⌘ Cmd" in a for a in d["avisos_cmd"])
     assert d["avisos_padrao"] == [], "o padrão do Mac não pode ter conflito"
+    assert any("menu de contexto" in a for a in d["avisos_ctrl"])
+    assert any("⌘ Cmd+C" in a for a in d["avisos_cmd_c"])
+    assert d["avisos_win"] == [], "no Mac, ⌘ não é reservado como o Win"
 
 
 # ---------- Ação Rápida ----------

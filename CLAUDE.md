@@ -103,3 +103,8 @@ python -m conversor --listar
     nos testes; para simular outro sistema, use um subprocesso.
 21. A Ação Rápida segue a estrutura de workflows reais (fontes no topo de
     `acao_rapida.py`) e é EXECUTADA no CI com `automator -i`.
+22. **`after` do Tk:** em janela que fecha (painel, aviso), todo `after`
+    pendente é cancelado ao fechar e no `<Destroy>`. Senão o Tcl chama um
+    comando apagado e o Tk abre o diálogo de erro — no Mac é modal e trava
+    o programa. Os testes falham em qualquer erro Tcl em segundo plano
+    (`tests/conftest.py`); o app manda esses erros ao log (`registrar_erros_tcl`).

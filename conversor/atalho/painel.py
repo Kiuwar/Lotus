@@ -45,6 +45,10 @@ class Painel:
         self.dialogo = False   # caixa de mensagem aberta: não fechar por "clique fora"
         self.fechado = False
         self._ocioso = None
+        # Todo `after` do painel passa por _depois: ao fechar, os pendentes são
+        # cancelados. Senão o Tcl dispara um comando já apagado ("invalid
+        # command name") e o Tk abre o diálogo de erro (no Mac, modal: trava).
+        self._afters: set[str] = set()
         self.log = get_logger()
 
         formatos = []
@@ -75,6 +79,8 @@ class Painel:
         self.top.bind("<Leave>", lambda _e: self._set_hover(None))
         self.top.bind("<Button-1>", self._clicar)
         self.top.bind("<Escape>", lambda _e: self.destroy())
+        # Janela destruída por fora (ex.: a raiz fechou): cancela os after também.
+        self.top.bind("<Destroy>", lambda e: self._encerrar() if e.widget is self.top else None, add="+")
         if sys.platform != "win32":
             # No Windows o "clique fora" vem do gancho de mouse do agente
             # (clique_global): a janela de ferramenta pode perder o foco ao surgir.
@@ -82,10 +88,29 @@ class Painel:
         self._rastrear()
         self.top.focus_force()
         # De novo após a janela aparecer de fato: sem foco, o Esc não chega.
-        self.top.after(30, lambda: None if self.fechado else self.top.focus_force())
+        self._depois(30, self.top.focus_force)
         self._reiniciar_ocioso()
         if self.motivo:
-            self.root.after(50, self._sem_destino)
+            self._depois(50, self._sem_destino)
+
+    def _depois(self, ms: int, func, *args) -> str | None:
+        """`after` que se desfaz sozinho quando o painel fecha."""
+        if self.fechado:
+            return None
+
+        def rodar():
+            self._afters.discard(ident)
+            if not self.fechado:
+                func(*args)
+
+        ident = self.top.after(ms, rodar)
+        self._afters.add(ident)
+        return ident
+
+    def _cancelar(self, ident: str | None) -> None:
+        if ident is not None and ident in self._afters:
+            self._afters.discard(ident)
+            self.top.after_cancel(ident)
 
     # ---------- desenho ----------
 
@@ -120,7 +145,7 @@ class Painel:
                 self._reiniciar_ocioso()
         elif self.hover is not None:
             self._set_hover(None)
-        self.top.after(30, self._rastrear)
+        self._depois(30, self._rastrear)
 
     def _clicar(self, e) -> None:
         alvo = self.layout.hit_test(e.x, e.y)
@@ -155,9 +180,8 @@ class Painel:
             self.destroy()
 
     def _reiniciar_ocioso(self) -> None:
-        if self._ocioso is not None:
-            self.top.after_cancel(self._ocioso)
-        self._ocioso = self.top.after(OCIOSO_MS, self._fora)
+        self._cancelar(self._ocioso)
+        self._ocioso = self._depois(OCIOSO_MS, self._fora)
 
     # ---------- conversão ----------
 
@@ -174,7 +198,7 @@ class Painel:
         if self.fechado:
             return
         if t.is_alive():
-            self.top.after(80, self._esperar, t, resultados, fmt)
+            self._depois(80, self._esperar, t, resultados, fmt)
             return
         self.ocupado = False
         falhou, texto = summary(resultados)
@@ -188,7 +212,7 @@ class Painel:
             self._pintar()
         else:
             self.log.info("painel: %s", texto.replace("\n", " | "))
-            self.top.after(FECHAR_APOS_OK_MS, self.destroy)
+            self._depois(FECHAR_APOS_OK_MS, self.destroy)
 
     def _sem_destino(self) -> None:
         self.dialogo = True
@@ -200,11 +224,20 @@ class Painel:
     def destroy(self) -> None:
         if self.fechado:
             return
-        self.fechado = True
+        self._encerrar()
         try:
             self.top.destroy()
         except tk.TclError:
             pass
+
+    def _encerrar(self) -> None:
+        self.fechado = True
+        for ident in list(self._afters):
+            try:
+                self.top.after_cancel(ident)
+            except tk.TclError:
+                pass
+        self._afters.clear()
 
 
 def abrir_painel(root: tk.Misc, arquivos: list[str], x: int, y: int) -> Painel:

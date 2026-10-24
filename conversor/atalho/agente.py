@@ -25,7 +25,7 @@ from ctypes import wintypes as w
 from pathlib import Path
 
 from conversor.atalho import config, gesto, selecao, winapi
-from conversor.logs import get_logger
+from conversor.logs import get_logger, registrar_erros_tcl
 
 ID_TECLA = 0x4C54  # identificador da tecla de atalho registrada ("LT")
 MSG_RECARREGAR = winapi.WM_APP + 1
@@ -182,6 +182,7 @@ def executar() -> int:
     log.info("agente iniciado: %s", cfg.gatilho.descrever())
 
     root = tk.Tk()
+    registrar_erros_tcl(root)
     root.withdraw()
     estado = {"painel": None, "mtime": _mtime(config.arquivo_config()), "conta": 0}
 

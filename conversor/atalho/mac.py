@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from conversor.atalho import config, gesto
-from conversor.logs import get_logger
+from conversor.logs import get_logger, registrar_erros_tcl
 
 FINDER = "com.apple.finder"
 MARCA = 0x4C4F5455  # "LOTU": identifica cliques simulados pelo próprio Lotus
@@ -305,6 +305,7 @@ def executar() -> int:
     threading.Thread(target=trabalhador, args=(trabalho, saida), daemon=True).start()
 
     root = tk.Tk()
+    registrar_erros_tcl(root)
     root.withdraw()
     try:  # agente sem ícone no Dock
         from AppKit import NSApplication, NSApplicationActivationPolicyAccessory

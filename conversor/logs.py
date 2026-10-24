@@ -47,3 +47,20 @@ def get_logger() -> logging.Logger:
     logger.propagate = False
     _logger = logger
     return logger
+
+
+def registrar_erros_tcl(root) -> None:
+    """Erro de um script Tcl em segundo plano (ex.: `after` de janela já
+    fechada) vai para este log, em vez do diálogo de erro do Tk — que no Mac
+    é modal e congela o programa. Não substitui um `bgerror` já definido."""
+    if root.tk.call("info", "commands", "bgerror"):
+        return
+
+    def bgerror(msg):
+        try:
+            pilha = root.tk.globalgetvar("errorInfo")
+        except Exception:
+            pilha = ""
+        get_logger().error("erro do Tcl em segundo plano: %s\n%s", msg, pilha)
+
+    root.tk.createcommand("bgerror", bgerror)

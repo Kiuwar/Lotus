@@ -13,6 +13,7 @@ from conversor import __version__
 from conversor.core import registry
 from conversor.core.detect import DetectionError, detect
 from conversor.core.engine import ConversionError, convert_file
+from conversor.logs import registrar_erros_tcl
 
 
 def common_targets(formats: list[str]) -> list[str]:
@@ -374,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
     files = sys.argv[1:] if argv is None else argv
     _enable_dpi_awareness()
     root = tk.Tk()
+    registrar_erros_tcl(root)
     aparencia = tema.carregar()
     pal = tema.paleta(aparencia)
     propria = sys.platform == "win32" and not aparencia.moldura_windows
