@@ -238,6 +238,12 @@ def quadro_do_video(src: Path, dst: Path, options: dict) -> None:
 def audio_para_mp4(src: Path, dst: Path, options: dict) -> None:
     """MP4 com tela preta e o áudio (para enviar a sites que só aceitam vídeo)."""
     _aviso(options, "O MP4 mostra uma tela preta enquanto o áudio toca.")
-    _executar(["-f", "lavfi", "-i", "color=c=black:s=1280x720:r=2", "-i", str(src), "-shortest",
+    # Só "-shortest" não basta: no CI do Mac Intel um áudio de 1 s gerou 28 s de
+    # vídeo (a tela preta não parou com o fim do áudio). Com a duração medida,
+    # a fonte da tela preta e a saída têm o tamanho exato do áudio.
+    dur = sondar(src)["duracao"]
+    cor = "color=c=black:s=1280x720:r=2" + (f":d={dur:.3f}" if dur else "")
+    limite = ["-t", f"{dur:.3f}"] if dur else []
+    _executar(["-f", "lavfi", "-i", cor, "-i", str(src), "-shortest", *limite,
                "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-tune", "stillimage",
                "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", str(dst)])
