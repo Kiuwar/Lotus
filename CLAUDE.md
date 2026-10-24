@@ -5,14 +5,18 @@ Este arquivo é lido automaticamente pelo Claude Code em toda sessão. Ele é a
 
 ## O projeto
 
-Lotus: aplicativo Windows (Python + tkinter, empacotado com
+Lotus: aplicativo Windows e macOS (Python + tkinter, empacotado com
 PyInstaller) que converte arquivos **localmente**, sem internet.
 
 - `conversor/core/registry.py` — fonte única de verdade das conversões.
 - `conversor/core/engine.py` — detecta, converte, valida, grava (atômico).
 - `conversor/core/detect.py` — formato real pelo conteúdo, não pela extensão.
 - `conversor/core/validate.py` — reabre a saída antes de aceitar.
-- `conversor/converters/` — uma família de formatos por módulo.
+- `conversor/converters/` — uma família de formatos por módulo
+  (`pdf.py`: PDF→PNG/JPG/TXT; `office.py`: Word e PowerPoint via COM;
+  `office_texto.py`: DOCX→TXT/MD/HTML e PPTX→TXT/MD sem Office;
+  `media.py`: áudio e vídeo via ffmpeg).
+  Conversor com `multi=True` recebe uma pasta e grava várias saídas.
 - `conversor/launcher.py` — entrada do Lotus.exe (janela, menu, reparo).
 - `conversor/shell.py` — menu do botão direito (registro, HKCU).
 - `conversor/menu.py` — janelas abertas pelo botão direito.
@@ -20,7 +24,21 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
 - `conversor/atalho/` — painel flutuante (Ctrl+Shift+clique): `config.py`
   (atalho e validação), `gesto.py` (lógica pura do gesto), `winapi.py`
   (ctypes), `selecao.py` (seleção do Explorer via COM), `agente.py`
-  (processo em segundo plano), `painel.py`, `janela_config.py`, `controle.py`.
+  (processo em segundo plano), `painel.py`, `janela_config.py`, `controle.py`,
+  `bandeja.py` (ícone ao lado do relógio; só enfileira comandos).
+- `conversor/ui/` — visual estilo macOS: `tema.py` (temas, cores, contraste),
+  `grupos.py`, `radial.py` (geometria pura do painel), `render.py` (desenho
+  Pillow 3× + cache), `camadas.py` (janela em camadas do Windows),
+  `widgets.py` (pílula, cartão, estilo ttk), `moldura.py` (moldura própria),
+  `janela_aparencia.py`.
+- `scripts/gerar_previas.py` — imagens do design (artefato "Galeria-de-design" no CI).
+- `conversor/ui/icone.py` — ícone da flor de lótus desenhado por código;
+  `scripts/gerar_icone.py` grava `conversor/recursos/lotus.{ico,icns,png}`
+  (o teste falha se estiverem desatualizados).
+- `conversor/atalho/mac.py` — agente do Mac (Quartz Event Tap, seleção do
+  Finder via osascript, trava de instância, LaunchAgent).
+- `conversor/acao_rapida.py` — Ação Rápida do Finder (clique direito no Mac).
+- `scripts/ajustar_app_mac.py`, `scripts/capturar_mac.py` — empacotamento/diagnóstico Mac.
 - `installer/lotus.iss` — instalador Inno Setup (gerado e testado no CI).
 - `docs/FORMATOS.md` — GERADO por `scripts/gerar_formatos.py`. Não editar à mão.
 - `docs/ANALISE.md` — por que o projeto é assim e como evitar erros de IA.
@@ -76,3 +94,24 @@ python -m conversor --listar
     estrutura nova ganha teste de `sizeof` em `test_atalho_windows.py`.
 16. O que só um humano consegue testar (gesto real no Explorer) deve ser
     dito como pendente, nunca como verificado.
+17. **Word e PowerPoint (office.py):** constantes conferidas em
+    learn.microsoft.com e listadas no topo do arquivo (WdSaveFormat,
+    PpSaveAsFileType, MsoTriState). Sem Office no CI: a lógica é testada com
+    Word/PowerPoint simulados e o uso real é teste manual — nunca dizer que
+    foi verificado. XML do Office lido só com `defusedxml` (arquivo do usuário).
+18. **Design:** toda mudança visual passa pela galeria
+    (`scripts/gerar_previas.py`) e é OLHADA antes do commit. Texto precisa de
+    contraste ≥ 4,5:1 (`tema.legivel`); exceção: texto branco em botão
+    colorido a partir de 3:1 (padrão macOS, `tema.texto_sobre`).
+19. **Janela em camadas:** pixel com alfa > 0 captura cliques; sombras
+    passam pelo corte de alfa < 8 em `render.desenhar_base`.
+20. **Mac:** nomes do pyobjc só se estiverem em `mac.NOMES_QUARTZ` (o CI do
+    Mac confere que existem). Nunca recarregar módulos (`importlib.reload`)
+    nos testes; para simular outro sistema, use um subprocesso.
+21. A Ação Rápida segue a estrutura de workflows reais (fontes no topo de
+    `acao_rapida.py`) e é EXECUTADA no CI com `automator -i`.
+22. **`after` do Tk:** em janela que fecha (painel, aviso), todo `after`
+    pendente é cancelado ao fechar e no `<Destroy>`. Senão o Tcl chama um
+    comando apagado e o Tk abre o diálogo de erro — no Mac é modal e trava
+    o programa. Os testes falham em qualquer erro Tcl em segundo plano
+    (`tests/conftest.py`); o app manda esses erros ao log (`registrar_erros_tcl`).

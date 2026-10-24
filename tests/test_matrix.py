@@ -20,13 +20,15 @@ CASES = [(c.source, c.target, c.category) for c in registry.all_converters()]
 def test_every_registered_conversion(source, target, category, sample, tmp_path):
     if category in ("Áudio", "Vídeo") and not HAS_FFMPEG:
         pytest.skip("ffmpeg não instalado")
+    if not registry.find(source, target).available():
+        pytest.skip(f"componente ausente: {registry.find(source, target).notes}")
     src = sample(source)
     before = src.read_bytes()
 
     result = convert_file(src, target, out_dir=tmp_path / "out")
 
-    assert result.output.is_file()
-    assert result.output.suffix == f".{target}"
+    saidas = sorted(result.output.iterdir()) if result.output.is_dir() else [result.output]
+    assert saidas and all(p.is_file() and p.suffix == f".{target}" for p in saidas)
     assert src.read_bytes() == before, "o arquivo de origem não pode ser alterado"
     leftovers = [p for p in result.output.parent.iterdir() if ".tmp-" in p.name]
     assert not leftovers, f"temporários esquecidos: {leftovers}"

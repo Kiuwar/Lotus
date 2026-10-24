@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import sys
 
-from conversor.logs import get_logger, log_file
+from conversor.logs import get_logger, log_file, registrar_erros_tcl
+from conversor.ui.icone import aplicar_icone
 
 TITLE = "Lotus"
 _silencioso = False
@@ -30,6 +31,8 @@ def _show(text: str, error: bool = False) -> None:
     from tkinter import messagebox
 
     root = tk.Tk()
+    registrar_erros_tcl(root)
+    aplicar_icone(root)
     root.withdraw()
     (messagebox.showerror if error else messagebox.showinfo)(TITLE, text, parent=root)
     root.destroy()
@@ -74,6 +77,21 @@ def dispatch(argv: list[str]) -> int:
 
         return choose(argv[1:])
 
+    if argv and argv[0] == "--instalar-menu" and sys.platform == "darwin":
+        from conversor import acao_rapida
+
+        acao_rapida.instalar()
+        _show("Ação Rápida \"Converter com Lotus\" instalada. No Finder: clique com o botão "
+              "direito num arquivo → Ações Rápidas → Converter com Lotus.")
+        return 0
+
+    if argv and argv[0] == "--remover-menu" and sys.platform == "darwin":
+        from conversor import acao_rapida
+
+        acao_rapida.desinstalar()
+        _show("Ação Rápida removida.")
+        return 0
+
     if argv and argv[0] == "--instalar-menu":
         from conversor import shell
 
@@ -90,7 +108,10 @@ def dispatch(argv: list[str]) -> int:
         return 0
 
     if argv and argv[0] == "--agente":
-        from conversor.atalho.agente import executar
+        if sys.platform == "darwin":
+            from conversor.atalho.mac import executar
+        else:
+            from conversor.atalho.agente import executar
 
         return executar()
 
@@ -106,6 +127,12 @@ def dispatch(argv: list[str]) -> int:
         _show(controle.desativar())
         return 0
 
+    if argv and argv[0] in ("--ativar-bandeja", "--desativar-bandeja"):
+        from conversor.atalho import controle
+
+        _show(controle.ativar_bandeja() if argv[0] == "--ativar-bandeja" else controle.desativar_bandeja())
+        return 0
+
     if argv and argv[0] == "--desinstalar":
         # Chamado pelo desinstalador: desfaz tudo o que o Lotus gravou no sistema.
         from conversor import shell
@@ -113,6 +140,12 @@ def dispatch(argv: list[str]) -> int:
 
         controle.parar_agente()
         controle.desativar_inicio()
+        if sys.platform == "darwin":
+            from conversor import acao_rapida
+
+            acao_rapida.desinstalar()
+            _show("Lotus removido do sistema (Ação Rápida, atalho e início automático).")
+            return 0
         n = shell.uninstall()
         _show(f"Lotus removido do sistema (menu em {n} tipos de arquivo, atalho e início automático).")
         return 0

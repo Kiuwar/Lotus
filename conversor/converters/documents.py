@@ -13,6 +13,7 @@ _FONT_CANDIDATES = [
     Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "arial.ttf",
     Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "segoeui.ttf",
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+    Path("/System/Library/Fonts/Supplemental/Arial.ttf"),  # macOS 10.15+
     Path("/Library/Fonts/Arial.ttf"),
 ]
 

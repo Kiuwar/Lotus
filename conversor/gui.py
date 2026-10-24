@@ -13,6 +13,8 @@ from conversor import __version__
 from conversor.core import registry
 from conversor.core.detect import DetectionError, detect
 from conversor.core.engine import ConversionError, convert_file
+from conversor.logs import registrar_erros_tcl
+from conversor.ui.icone import aplicar_icone
 
 
 def common_targets(formats: list[str]) -> list[str]:
@@ -23,17 +25,55 @@ def common_targets(formats: list[str]) -> list[str]:
     return sorted(set.intersection(*sets))
 
 
+def situacao_arquivo(fmt: str) -> str:
+    """Texto da coluna Situação para um arquivo já detectado."""
+    if registry.targets_for(fmt):
+        return "pronto"
+    todos = [c for c in registry.all_converters() if c.source == fmt]
+    if todos:  # existe conversão, mas falta Word/ffmpeg
+        return "indisponível: " + todos[0].notes.rstrip(".").lower()
+    return f"sem conversão para {fmt.upper()}"
+
+
+def motivo_sem_destino(formats: list[str]) -> str | None:
+    """Explica por que não há formato de destino; None se há pelo menos um."""
+    if not formats:
+        return "Adicione arquivos para converter."
+    if common_targets(formats):
+        return None
+    sem = sorted({f for f in formats if not registry.targets_for(f)})
+    if sem:
+        partes = []
+        for f in sem:
+            conv = next((c for c in registry.all_converters() if c.source == f), None)
+            if conv:
+                partes.append(f"{f.upper()}: {conv.notes}")
+            else:
+                partes.append(f"arquivos {f.upper()} ainda não podem ser convertidos pelo Lotus")
+        return "Sem conversão disponível — " + "; ".join(partes) + "."
+    nomes = ", ".join(sorted({f.upper() for f in formats}))
+    return (f"Os arquivos selecionados ({nomes}) não têm um formato de destino em comum. "
+            "Remova alguns e converta cada tipo separadamente.")
+
+
 class App(ttk.Frame):
-    def __init__(self, master: tk.Tk):
-        super().__init__(master, padding=10)
+    def __init__(self, master: tk.Misc, pal=None, moldura=None):
+        from conversor.ui import tema
+        from conversor.ui.widgets import aplicar_estilo_ttk
+
+        self.pal = pal or tema.paleta(tema.carregar())
+        aplicar_estilo_ttk(master, self.pal)
+        super().__init__(master, padding=(16, 8, 16, 12), style="Fundo.TFrame")
         self.master = master
+        self.moldura = moldura
         self.files: dict[str, str] = {}  # id da linha -> caminho
         self.formats: dict[str, str] = {}  # id da linha -> formato detectado
         self.events: queue.Queue = queue.Queue()
         self.worker: threading.Thread | None = None
 
-        master.title(f"Lotus {__version__}")
-        master.minsize(720, 480)
+        top = master.winfo_toplevel()
+        top.title(f"Lotus {__version__}")
+        top.minsize(760, 560)
         self.grid(sticky="nsew")
         master.columnconfigure(0, weight=1)
         master.rowconfigure(0, weight=1)
@@ -42,82 +82,114 @@ class App(ttk.Frame):
     # ---------- montagem ----------
 
     def _build(self) -> None:
-        self._build_menubar()
-        bar = ttk.Frame(self)
-        bar.grid(row=0, column=0, sticky="ew")
-        ttk.Button(bar, text="Adicionar arquivos…", command=self.add_dialog).pack(side="left")
-        ttk.Button(bar, text="Remover selecionados", command=self.remove_selected).pack(side="left", padx=6)
-        ttk.Button(bar, text="Limpar", command=self.clear).pack(side="left")
+        from conversor.ui.widgets import BotaoPilula, Cartao
 
-        self.tree = ttk.Treeview(self, columns=("fmt", "status"), height=10)
-        self.tree.heading("#0", text="Arquivo")
+        p = self.pal
+        self._build_menubar()
+
+        bar = ttk.Frame(self, style="Fundo.TFrame")
+        bar.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        BotaoPilula(bar, "＋  Adicionar arquivos…", command=self.add_dialog, pal=p).pack(side="left")
+        BotaoPilula(bar, "Remover selecionados", command=self.remove_selected, pal=p).pack(side="left", padx=8)
+        BotaoPilula(bar, "Limpar", command=self.clear, pal=p).pack(side="left")
+
+        lista = Cartao(self, p, pad=6)
+        lista.fixar_altura()
+        lista.grid(row=1, column=0, sticky="nsew")
+        self.tree = ttk.Treeview(lista.interior, columns=("fmt", "status"), height=8)
+        self.tree.heading("#0", text="Arquivo", anchor="w")
         self.tree.heading("fmt", text="Formato")
-        self.tree.heading("status", text="Situação")
+        self.tree.heading("status", text="Situação", anchor="w")
         self.tree.column("#0", width=380)
         self.tree.column("fmt", width=80, anchor="center")
         self.tree.column("status", width=220)
-        self.tree.grid(row=1, column=0, sticky="nsew", pady=8)
+        self.tree.pack(fill="both", expand=True)
 
-        opts = ttk.Frame(self)
-        opts.grid(row=2, column=0, sticky="ew")
-        ttk.Label(opts, text="Converter para:").grid(row=0, column=0, sticky="w")
+        opcoes = Cartao(self, p)
+        opcoes.grid(row=2, column=0, sticky="ew", pady=10)
+        opts = opcoes.interior
+        ttk.Label(opts, text="Converter para").grid(row=0, column=0, sticky="w")
         self.target = tk.StringVar()
         self.target_box = ttk.Combobox(opts, textvariable=self.target, state="readonly", width=10)
-        self.target_box.grid(row=0, column=1, sticky="w", padx=6)
+        self.target_box.grid(row=0, column=1, sticky="w", padx=8)
+        self.hint = ttk.Label(opts, text="", style="Aviso.TLabel", wraplength=440, justify="left")
+        self.hint.grid(row=0, column=2, columnspan=2, sticky="w")
 
         self.same_dir = tk.BooleanVar(value=True)
         ttk.Checkbutton(
             opts, text="Salvar na mesma pasta do arquivo", variable=self.same_dir,
             command=self._toggle_out_dir,
-        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0))
         self.out_dir = tk.StringVar()
         self.out_entry = ttk.Entry(opts, textvariable=self.out_dir, width=50, state="disabled")
-        self.out_entry.grid(row=2, column=0, columnspan=2, sticky="ew")
-        self.out_btn = ttk.Button(opts, text="Escolher pasta…", command=self.pick_out_dir, state="disabled")
-        self.out_btn.grid(row=2, column=2, padx=6)
+        self.out_entry.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        self.out_btn = BotaoPilula(opts, "Escolher pasta…", command=self.pick_out_dir, pal=p,
+                                   fundo=p.superficie, altura=28, state="disabled")
+        self.out_btn.grid(row=2, column=2, padx=8, pady=(4, 0), sticky="w")
 
         self.overwrite = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             opts, text="Sobrescrever arquivos existentes", variable=self.overwrite
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(8, 0))
 
-        run = ttk.Frame(self)
-        run.grid(row=3, column=0, sticky="ew", pady=8)
-        self.convert_btn = ttk.Button(run, text="Converter", command=self.start)
+        run = ttk.Frame(self, style="Fundo.TFrame")
+        run.grid(row=3, column=0, sticky="ew")
+        self.convert_btn = BotaoPilula(run, "Converter", command=self.start, pal=p, primario=True,
+                                       largura=150, altura=36)
         self.convert_btn.pack(side="left")
         self.progress = ttk.Progressbar(run, mode="determinate")
-        self.progress.pack(side="left", fill="x", expand=True, padx=8)
+        self.progress.pack(side="left", fill="x", expand=True, padx=12)
 
-        self.log = tk.Text(self, height=7, state="disabled", wrap="word")
-        self.log.grid(row=4, column=0, sticky="nsew")
+        registro = Cartao(self, p, pad=8)
+        registro.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        self.log = tk.Text(registro.interior, height=5, state="disabled", wrap="word", bd=0,
+                           highlightthickness=0, bg=p.superficie, fg=p.texto, insertbackground=p.texto)
+        self.log.pack(fill="both", expand=True)
 
         ttk.Label(
             self,
             text="Os arquivos são processados apenas neste computador. Nada é enviado à internet.",
-            foreground="#555",
-        ).grid(row=5, column=0, sticky="w", pady=(6, 0))
+            style="Fundo.TLabel",
+        ).grid(row=5, column=0, sticky="w", pady=(8, 0))
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
-        self.rowconfigure(4, weight=1)
 
     def _build_menubar(self) -> None:
-        menubar = tk.Menu(self.master)
-        tools = tk.Menu(menubar, tearoff=False)
-        on_windows = "normal" if sys.platform == "win32" else "disabled"
-        on_windows_or_dev = "normal"  # a janela de configuração funciona em qualquer sistema
-        tools.add_command(label="Instalar menu do botão direito", command=self.install_menu, state=on_windows)
-        tools.add_command(label="Remover menu do botão direito", command=self.uninstall_menu, state=on_windows)
-        tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey, state=on_windows_or_dev)
+        tools = tk.Menu(self.master, tearoff=False)
+        suportado = "normal" if sys.platform in ("win32", "darwin") else "disabled"
+        nome_menu = "Ação Rápida do Finder" if sys.platform == "darwin" else "menu do botão direito"
+        tools.add_command(label="Aparência…", command=self.configure_appearance)
+        tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey)
+        if sys.platform == "win32":
+            from conversor.atalho import config as cfg_atalho
+
+            self.bandeja_var = tk.BooleanVar(value=cfg_atalho.carregar().bandeja)
+            tools.add_checkbutton(label="Ícone ao lado do relógio", variable=self.bandeja_var,
+                                  command=self.toggle_tray)
+        tools.add_separator()
+        tools.add_command(label=f"Instalar {nome_menu}", command=self.install_menu, state=suportado)
+        tools.add_command(label=f"Remover {nome_menu}", command=self.uninstall_menu, state=suportado)
         tools.add_separator()
         tools.add_command(label="Diagnosticar e reparar", command=self.diagnose)
         tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
-        menubar.add_cascade(label="Ferramentas", menu=tools)
-        self.master.configure(menu=menubar)
+        self.tools_menu = tools
+        if self.moldura is not None and self.moldura.propria:
+            self.moldura.definir_menu(tools)  # botão "Ferramentas ▾" da barra de título
+        else:
+            menubar = tk.Menu(self.master)
+            menubar.add_cascade(label="Ferramentas", menu=tools)
+            self.master.winfo_toplevel().configure(menu=menubar)
 
     # ---------- ferramentas ----------
 
     def install_menu(self) -> None:
+        if sys.platform == "darwin":
+            from conversor import acao_rapida
+
+            acao_rapida.instalar()
+            self._log("Ação Rápida instalada: no Finder, clique direito → Ações Rápidas → Converter com Lotus.")
+            return
         from conversor import shell
 
         try:
@@ -129,9 +201,26 @@ class App(ttk.Frame):
                   "(no Windows 11: \"Mostrar mais opções\").")
 
     def uninstall_menu(self) -> None:
+        if sys.platform == "darwin":
+            from conversor import acao_rapida
+
+            acao_rapida.desinstalar()
+            self._log("Ação Rápida removida.")
+            return
         from conversor import shell
 
         self._log(f"Menu removido de {shell.uninstall()} tipos de arquivo.")
+
+    def toggle_tray(self) -> None:
+        from conversor.atalho import controle
+
+        ligar = self.bandeja_var.get()
+        self._log(controle.ativar_bandeja() if ligar else controle.desativar_bandeja())
+
+    def configure_appearance(self) -> None:
+        from conversor.ui.janela_aparencia import JanelaAparencia
+
+        JanelaAparencia(self.master.winfo_toplevel())
 
     def configure_hotkey(self) -> None:
         from conversor.atalho.janela_config import JanelaAtalho
@@ -165,10 +254,10 @@ class App(ttk.Frame):
             known.add(p)
             try:
                 fmt = detect(Path(p)).fmt
-                status = "pronto"
+                status = situacao_arquivo(fmt)
             except DetectionError as e:
                 fmt, status = "?", str(e)
-            iid = self.tree.insert("", "end", text=p, values=(fmt.upper(), status))
+            iid = self.tree.insert("", "end", text=Path(p).name, values=(fmt.upper(), status))
             self.files[iid] = p
             if fmt != "?":
                 self.formats[iid] = fmt
@@ -193,6 +282,8 @@ class App(ttk.Frame):
         self.target_box["values"] = [t.upper() for t in targets]
         if self.target.get().lower() not in targets:
             self.target.set(targets[0].upper() if targets else "")
+        motivo = motivo_sem_destino(list(self.formats.values())) if self.files else None
+        self.hint.configure(text=motivo or "")
 
     # ---------- saída ----------
 
@@ -214,11 +305,15 @@ class App(ttk.Frame):
         jobs = [(iid, self.files[iid]) for iid in self.files if iid in self.formats]
         target = self.target.get().lower()
         if not jobs or not target:
-            messagebox.showinfo("Conversor", "Adicione arquivos válidos e escolha o formato.")
+            if self.files and not jobs:
+                motivo = "Nenhum dos arquivos foi reconhecido (veja a coluna Situação)."
+            else:
+                motivo = motivo_sem_destino(list(self.formats.values())) or "Escolha o formato."
+            messagebox.showinfo("Lotus", motivo)
             return
         out_dir = None if self.same_dir.get() else self.out_dir.get().strip()
         if out_dir == "":
-            messagebox.showinfo("Conversor", "Escolha a pasta de saída.")
+            messagebox.showinfo("Lotus", "Escolha a pasta de saída.")
             return
         self.convert_btn.configure(state="disabled")
         self.progress.configure(maximum=len(jobs), value=0)
@@ -287,12 +382,25 @@ def _enable_dpi_awareness() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from conversor.ui import tema
+    from conversor.ui.moldura import Moldura, centralizar
+
     files = sys.argv[1:] if argv is None else argv
     _enable_dpi_awareness()
     root = tk.Tk()
-    app = App(root)
+    registrar_erros_tcl(root)
+    aplicar_icone(root)
+    aparencia = tema.carregar()
+    pal = tema.paleta(aparencia)
+    propria = sys.platform == "win32" and not aparencia.moldura_windows
+    moldura = Moldura(root, pal, f"Lotus {__version__}", propria=propria)
+    centralizar(root, 860, 680)
+    app = App(moldura.conteudo, pal=pal, moldura=moldura)
     if files:  # "Abrir com" / arrastar arquivos sobre o .exe
         app.add_files(files)
+    if sys.platform == "darwin":
+        # No Mac, arquivos enviados pelo Finder chegam como evento do Tk.
+        root.createcommand("::tk::mac::OpenDocument", lambda *caminhos: app.add_files(caminhos))
     root.mainloop()
     return 0
 

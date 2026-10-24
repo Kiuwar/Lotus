@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gc
 import json
+import sys
 
 import pytest
 
@@ -13,10 +14,14 @@ from conversor.atalho.config import Gatilho
 from .fake_winreg import FakeWinreg
 
 CTRL_SHIFT = frozenset({"ctrl", "shift"})
+# Testes do gesto do Windows usam Ctrl+Shift explícito: no Mac o padrão é
+# ⌥ Option+⇧ Shift (conferido em test_mac.py).
+WINDOWS_PADRAO = Gatilho(CTRL_SHIFT, "mouse", "esquerdo")
 
 
 # ---------- configuração ----------
 
+@pytest.mark.skipif(sys.platform == "darwin", reason="padrão do Mac: test_mac.py")
 def test_default_is_ctrl_shift_left_click():
     assert config.PADRAO.descrever() == "Ctrl+Shift+clique esquerdo"
     assert config.validar(config.PADRAO) == ([], [])
@@ -46,6 +51,7 @@ def test_dangerous_or_invalid_triggers_are_rejected(g):
         (Gatilho(frozenset({"win", "alt"}), "mouse", "meio"), "Win"),
     ],
 )
+@pytest.mark.skipif(sys.platform == "darwin", reason="avisos do Mac: test_mac.py")
 def test_conflicting_triggers_warn_but_are_allowed(g, aviso):
     erros, avisos = config.validar(g)
     assert not erros and any(aviso in a for a in avisos)
@@ -93,7 +99,7 @@ def test_corrupt_or_dangerous_config_is_repaired(tmp_path, conteudo):
 
 # ---------- detecção do gesto ----------
 
-def _det(g=config.PADRAO):
+def _det(g=WINDOWS_PADRAO):
     return gesto.Detector(g)
 
 
@@ -119,6 +125,19 @@ def test_gesture_passes_through_otherwise(botao, mods, injetado, classe):
     d = _det()
     assert d.evento(botao, True, mods, injetado, classe) == gesto.PASSAR
     assert d.evento(botao, False, set(), injetado, classe) == gesto.PASSAR
+
+
+@pytest.mark.parametrize("raiz,filho,esperado", [
+    ("Progman", "SysListView32", gesto.DISPARAR),    # ícones da área de trabalho
+    ("WorkerW", "SysListView32", gesto.DISPARAR),    # idem, com papel de parede animado
+    ("Progman", "SHELLDLL_DefView", gesto.PASSAR),   # espaço vazio fora da lista
+    ("WorkerW", "", gesto.PASSAR),                   # papel de parede
+    ("Chrome_WidgetWin_1", "SysListView32", gesto.PASSAR),  # lista em outro programa
+    ("CabinetWClass", "DirectUIHWND", gesto.DISPARAR),      # pasta do Explorer
+])
+def test_desktop_icons_are_accepted_only_on_the_icon_list(raiz, filho, esperado):
+    d = _det()
+    assert d.evento("esquerdo", True, {"ctrl", "shift"}, False, raiz, filho) == esperado
 
 
 def test_keyboard_trigger_never_fires_from_mouse():
@@ -175,9 +194,73 @@ def test_diagnostics_removes_leftover_autostart_when_off(monkeypatch):
 
     wr = FakeWinreg()
     controle.ativar_inicio(wr)
-    config.salvar(config.Config(config.PADRAO, atalho_ativo=False))
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=False, bandeja=False))
     assert "removido" in diagnostics.repair_autostart(wr)
     assert controle.inicio_registrado(wr) is None
+
+
+# ---------- ícone ao lado do relógio (bandeja) ----------
+
+def test_tray_menu_items_and_commands():
+    from conversor.atalho import bandeja
+
+    itens = bandeja.itens_menu(True, "Ctrl+Shift+clique esquerdo")
+    textos = [t for i, t, _ in itens if i is not None]
+    assert textos[0] == "Abrir o Lotus" and "Converter arquivos…" in textos
+    marcado = {t: m for i, t, m in itens if i is not None}
+    assert marcado["Painel por atalho (Ctrl+Shift+clique esquerdo)"] is True
+    assert not bandeja.itens_menu(False, "x")[3][2]
+    ids = [i for i, _, _ in itens if i is not None]
+    assert len(ids) == len(set(ids)), "ids do menu repetidos"
+    assert {bandeja.comando_do_id(i) for i in ids} == {
+        bandeja.ABRIR, bandeja.CONVERTER, bandeja.ATALHO, bandeja.CONFIGURAR, bandeja.APARENCIA, bandeja.SAIR}
+    assert bandeja.comando_do_id(9999) is None
+    assert len(bandeja.DICA) < 128  # limite do Windows para a dica do ícone
+
+
+def test_tray_setting_is_saved_and_defaults_on(tmp_path):
+    arq = tmp_path / "c.json"
+    assert config.carregar(arq).bandeja is True
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=False, bandeja=False), arq)
+    assert config.carregar(arq).bandeja is False
+    arq.write_text('{"versao": 1, "atalho": {}, "atalho_ativo": true}', encoding="utf-8")
+    assert config.carregar(arq).bandeja is True, "config antiga (sem o campo) liga o ícone"
+
+
+@pytest.mark.parametrize("atalho,bandeja,suportada,esperado", [
+    (False, False, True, False),
+    (True, False, True, True),
+    (False, True, True, True),
+    (False, True, False, False),  # Mac/Linux: o ícone não existe
+])
+def test_agent_runs_for_shortcut_or_tray(monkeypatch, atalho, bandeja, suportada, esperado):
+    monkeypatch.setattr(controle, "BANDEJA_SUPORTADA", suportada)
+    assert controle.precisa_rodar(config.Config(config.PADRAO, atalho, bandeja)) is esperado
+
+
+def test_turning_shortcut_off_keeps_agent_for_tray(monkeypatch):
+    monkeypatch.setattr(controle, "BANDEJA_SUPORTADA", True)
+    parou = []
+    monkeypatch.setattr(controle, "parar_agente", lambda: parou.append(1))
+    wr = FakeWinreg()
+    controle.ativar_inicio(wr)
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=True, bandeja=True))
+    msg = controle.desativar(wr)
+    assert "relógio" in msg and not parou and controle.inicio_registrado(wr)
+    assert config.carregar().atalho_ativo is False
+    monkeypatch.setattr(controle, "iniciar_agente", lambda: True)
+    controle.desativar_bandeja(wr)
+    assert parou and controle.inicio_registrado(wr) is None
+    config.salvar(config.Config())
+
+
+def test_tray_menu_toggles_shortcut():
+    alternar_atalho = controle.alternar_atalho
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=False))
+    assert alternar_atalho().atalho_ativo is True
+    assert config.carregar().atalho_ativo is True
+    assert alternar_atalho().atalho_ativo is False
+    config.salvar(config.Config())
 
 
 # ---------- janelas (display virtual) ----------
@@ -189,8 +272,8 @@ tk = pytest.importorskip("tkinter")
 def root():
     try:
         r = tk.Tk()
-    except tk.TclError:
-        pytest.skip("sem display disponível")
+    except tk.TclError as e:
+        pytest.skip(f"sem display disponível ({e})")
     r.withdraw()
     yield r
     try:
@@ -200,34 +283,148 @@ def root():
     gc.collect()
 
 
-def test_panel_position_stays_on_screen():
-    from conversor.atalho.painel import posicao_na_tela
-
-    assert posicao_na_tela(100, 100, 300, 200, 1920, 1080) == (112, 112)
-    assert posicao_na_tela(1900, 1070, 300, 200, 1920, 1080) == (1588, 858)
-    assert posicao_na_tela(5, 5, 3000, 2000, 1920, 1080) == (0, 0)
-
-
-def test_floating_panel_shows_formats_and_converts(root, sample):
-    from conversor.atalho.painel import abrir_painel
-
-    src = sample("png")
-    top = abrir_painel(root, [str(src)], 50, 50)
-    root.update()
-    chooser = next(w for w in top.winfo_children()[0].winfo_children())
-    assert "pdf" in chooser.buttons and top.overrideredirect()
-    chooser.buttons["pdf"].invoke()
+def _esperar(root, cond, limite=20):
     import time
 
-    fim = time.time() + 20
-    while not (chooser.worker and not chooser.worker.is_alive() and chooser.outcomes):
+    fim = time.time() + limite
+    while not cond():
         root.update()
-        assert time.time() < fim
-        time.sleep(0.05)
-        if chooser.worker and not chooser.worker.is_alive():
-            root.update()
-    assert (src.parent / "amostra.pdf").is_file()
-    top.destroy()
+        assert time.time() < fim, "travou"
+        time.sleep(0.03)
+
+
+class _Ev:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+
+def test_floating_panel_groups_formats_and_converts(root, sample):
+    from conversor.atalho.painel import Painel
+    from conversor.ui import tema
+
+    src = sample("pdf")
+    p = Painel(root, [str(src)], 400, 300, tema.Aparencia(modo="claro"))
+    root.update()
+    fmts = {i.fmt: i for i in p.layout.itens}
+    assert {"png", "jpg", "txt"} <= set(fmts)
+    assert {f.grupo for f in p.layout.faixas} >= {"Imagem", "Texto e dados"}
+
+    it = fmts["txt"]
+    p._mover(_Ev(it.x, it.y))
+    assert p.hover == "txt"
+    p._clicar(_Ev(it.x, it.y))
+    assert p.estados == {"txt": "ocupado"}
+    _esperar(root, lambda: p.fechado)  # ✓ e fecha sozinho
+    assert "ação" in (src.parent / "amostra.txt").read_text(encoding="utf-8")
+
+
+def test_closed_panel_leaves_no_pending_callbacks(root, sample):
+    """Fechar o painel cancela os `after` pendentes; senão o Tcl dispara
+    comandos apagados e o Tk abre o diálogo de erro (no Mac, modal: travava)."""
+    import time
+
+    from conversor.atalho.painel import Painel
+
+    p = Painel(root, [str(sample("png"))], 400, 300)
+    root.update()
+    assert p._afters, "painel aberto acompanha o cursor e conta o tempo ocioso"
+    p.destroy()
+    assert not p._afters
+    fim = time.time() + 0.5
+    while time.time() < fim:  # tempo para qualquer after esquecido disparar
+        root.update()
+        time.sleep(0.02)
+    # a fixture _sem_erros_tcl (conftest) falha o teste se algum disparou
+
+
+def test_tcl_background_errors_go_to_log_not_dialog(root):
+    from conversor import logs
+
+    root.tk.deletecommand("bgerror")  # tira o da fixture: testa o do app
+    logs.registrar_erros_tcl(root)
+    root.tk.eval("after 1 {error {erro de teste do Tcl}}")
+
+    def no_log():
+        f = logs.log_file()
+        return f.exists() and "erro de teste do Tcl" in f.read_text(encoding="utf-8")
+
+    _esperar(root, no_log, limite=5)
+
+
+def test_panel_closes_on_center_escape_and_outside_click(root, sample):
+    from conversor.atalho.painel import Painel
+    from conversor.ui import radial
+
+    src = str(sample("png"))
+    p = Painel(root, [src], 500, 400)
+    p._clicar(_Ev(p.layout.ancora_x, p.layout.ancora_y))
+    assert p.fechado
+
+    p = Painel(root, [src], 500, 400)
+    x0, y0 = p.pos
+    p.clique_global(x0 + round(p.layout.ancora_x), y0 + round(p.layout.ancora_y))  # dentro
+    assert not p.fechado
+    p.clique_global(x0 + p.layout.largura + 50, y0)  # fora
+    assert p.fechado
+
+    p = Painel(root, [src], 500, 400)
+    _esperar(root, lambda: root.focus_get() == p.top)  # o painel pega o foco sozinho
+    p.top.event_generate("<Escape>", when="tail")
+    root.update()
+    assert p.fechado
+    assert radial.CENTRO  # (constante usada acima)
+
+
+def test_panel_does_not_close_while_converting(root, sample, monkeypatch):
+    import threading
+
+    from conversor.atalho import painel as mod
+
+    liberar = threading.Event()
+    monkeypatch.setattr(mod, "_converter", lambda res, c, f: liberar.wait(5))
+    p = mod.Painel(root, [str(sample("png"))], 500, 400)
+    p.converter("jpg")
+    p.clique_global(-1000, -1000)
+    assert not p.fechado, "clique fora não pode cancelar uma conversão em andamento"
+    liberar.set()
+    _esperar(root, lambda: not p.ocupado)
+    p.destroy()
+
+
+def test_more_button_switches_to_full_card(root, tmp_path, monkeypatch):
+    from conversor.atalho import painel as mod
+    from conversor.ui import radial
+
+    monkeypatch.setattr(radial, "MAX_ITENS", 3)
+    criados = []
+    original = mod.Painel.__init__
+
+    def espiao(self, *a, **k):
+        criados.append(k.get("forma"))
+        original(self, *a, **k)
+
+    monkeypatch.setattr(mod.Painel, "__init__", espiao)
+    from .conftest import make_sample
+
+    p = mod.Painel(root, [str(make_sample("png", tmp_path))], 500, 400)
+    mais = next(i for i in p.layout.itens if i.fmt == radial.MAIS)
+    p._clicar(_Ev(mais.x, mais.y))
+    assert p.fechado and criados[-1] == "cartao"
+
+
+def test_panel_explains_when_no_conversion(root, tmp_path, monkeypatch):
+    import zipfile
+
+    from conversor.atalho import painel as mod
+
+    z = tmp_path / "a.zip"
+    with zipfile.ZipFile(z, "w") as f:
+        f.writestr("x.txt", "x")
+    mostrado = []
+    monkeypatch.setattr(mod.messagebox, "showinfo", lambda t, m, **k: mostrado.append(m))
+    p = mod.Painel(root, [str(z)], 300, 300)
+    _esperar(root, lambda: p.fechado)
+    assert mostrado and "ZIP" in mostrado[0]
 
 
 def test_config_window_blocks_dangerous_and_saves(root, monkeypatch):
@@ -249,7 +446,7 @@ def test_config_window_blocks_dangerous_and_saves(root, monkeypatch):
     j.tecla.set("F7")
     j.atualizar()
     assert str(j.salvar_btn["state"]) == "normal"
-    assert j.resumo["text"] == "Atalho: Alt+F7"
+    assert j.resumo["text"] == f"Atalho: {config.NOME_MOD['alt']}+F7"
     j.salvar()
     assert config.carregar().gatilho == Gatilho(frozenset({"alt"}), "tecla", tecla="F7")
     config.salvar(config.Config())  # volta ao padrão para os outros testes

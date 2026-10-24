@@ -21,8 +21,9 @@ from tkinter import messagebox, ttk
 from conversor.core import registry
 from conversor.core.detect import DetectionError, detect
 from conversor.core.engine import ConversionError, Result, convert_file
-from conversor.gui import common_targets
-from conversor.logs import log_file
+from conversor.gui import common_targets, motivo_sem_destino
+from conversor.logs import log_file, registrar_erros_tcl
+from conversor.ui.icone import aplicar_icone
 
 TITLE = "Lotus"
 
@@ -93,13 +94,18 @@ def toast(root: tk.Tk, text: str, ms: int = 3500) -> None:
     y = root.winfo_screenheight() - h - 72  # acima da barra de tarefas
     root.geometry(f"+{x}+{y}")
     root.bind("<Button-1>", lambda _e: root.destroy())
-    root.after(ms, root.destroy)
+    ident = root.after(ms, root.destroy)
+    # Fechada antes (clique ou por fora): cancela o after, senão o Tcl chama
+    # um comando já apagado e o Tk abre o diálogo de erro.
+    root.bind("<Destroy>", lambda e: root.after_cancel(ident) if e.widget is root else None, add="+")
 
 
 def quick_convert(paths: list[str], target: str, root: tk.Tk | None = None) -> int:
     outcomes = convert_many(paths, target)
     failed, text = summary(outcomes)
     root = root or tk.Tk()
+    registrar_erros_tcl(root)
+    aplicar_icone(root)
     if failed:
         root.withdraw()
         messagebox.showerror(TITLE, text, parent=root)
@@ -150,7 +156,7 @@ class Chooser(ttk.Frame):
         next_row = 2 + len(self.targets) // self.COLUMNS
 
         if not self.targets:
-            msg = "\n".join(problems) or "Nenhum formato de destino em comum para esses arquivos."
+            msg = "\n".join(problems) or motivo_sem_destino(formats) or ""
             ttk.Label(self, text=msg, foreground="#a00", wraplength=380).grid(
                 row=next_row, column=0, columnspan=self.COLUMNS, sticky="w"
             )
@@ -214,6 +220,8 @@ def _convert_into(results: list, paths: list[str], target: str) -> None:
 
 def choose(paths: list[str]) -> int:
     root = tk.Tk()
+    registrar_erros_tcl(root)
+    aplicar_icone(root)
     Chooser(root, paths)
     root.mainloop()
     return 0

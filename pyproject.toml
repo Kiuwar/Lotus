@@ -8,7 +8,12 @@ dependencies = [
     "openpyxl==3.1.5",
     "fpdf2==2.8.9",
     "markdown==3.11.2",
+    "pypdf==6.21.2",
+    "pypdfium2==5.14.0",
+    "defusedxml==0.7.1",
     "pywin32==312; sys_platform == 'win32'",
+    "pyobjc-framework-Quartz==12.2.2; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa==12.2.2; sys_platform == 'darwin'",
 ]
 
 [project.scripts]
@@ -27,5 +32,10 @@ version = { attr = "conversor.__version__" }
 [tool.setuptools.packages.find]
 include = ["conversor*"]
 
+[tool.setuptools.package-data]
+conversor = ["recursos/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Teste parado há 2 min → o pytest imprime onde cada thread está (sem matar).
+faulthandler_timeout = 120

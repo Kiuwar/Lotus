@@ -2,7 +2,15 @@ name: CI
 
 on:
   push:
+    tags: ["v*"]
+    branches: ["**"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: "Publicar instaladores (Windows e Mac) numa Release do GitHub"
+        type: boolean
+        default: false
 
 jobs:
   test:
@@ -34,11 +42,29 @@ jobs:
         if: runner.os == 'Windows'
         # Se falhar, os testes de áudio/vídeo são PULADOS (e aparecem como skipped no log).
         continue-on-error: true
-        run: choco install ffmpeg -y --no-progress
+        shell: pwsh
+        run: |
+          foreach ($i in 1..2) {
+            choco install ffmpeg -y --no-progress
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "choco falhou (tentativa $i)"; Start-Sleep 15
+          }
+          exit 1
 
       - name: Testes (Linux, com display virtual para a interface)
         if: runner.os == 'Linux'
         run: xvfb-run -a python -m pytest -v -rs
+
+      - name: Galeria de prévias do design (painel e janelas)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a -s "-screen 0 1280x900x24" python scripts/gerar_previas.py previas
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: Galeria-de-design
+          path: |
+            previas/*.png
+            previas/painel/*.png
       - name: Testes (Windows)
         if: runner.os == 'Windows'
         # O choco instala atalhos em C:\ProgramData\chocolatey\bin, que já está no PATH.
@@ -58,8 +84,8 @@ jobs:
       - name: Empacotar
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --paths . packaging/app_gui.py
-          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --paths . packaging/app_cli.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.ico --add-data "conversor/recursos:conversor/recursos" --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --icon conversor/recursos/lotus.ico --paths . packaging/app_cli.py
           Copy-Item dist/conversor-cli.exe dist/Lotus/
           Copy-Item README.md, docs/FORMATOS.md dist/Lotus/
 
@@ -67,6 +93,8 @@ jobs:
         shell: pwsh
         run: |
           $exe = "dist/Lotus/conversor-cli.exe"
+          # Ícone da flor dentro do pacote (janela, bandeja e atalhos usam).
+          if (-not (Test-Path "dist/Lotus/_internal/conversor/recursos/lotus.ico")) { throw "lotus.ico não foi empacotado" }
           & $exe --listar
           if ($LASTEXITCODE -ne 0) { throw "--listar falhou" }
           python -c "from PIL import Image; Image.new('RGBA',(32,32),(255,0,0,128)).save('t.png')"
@@ -74,6 +102,13 @@ jobs:
           & $exe t.png t.txt --para pdf --saida saida
           if ($LASTEXITCODE -ne 0) { throw "conversão falhou no executável" }
           if (!(Test-Path saida/t.pdf)) { throw "PDF não gerado" }
+          # PDF como origem: prova que o PyInstaller levou a DLL do PDFium e o pypdf.
+          # (saida/t.pdf veio da imagem e não tem texto; gera um PDF a partir do TXT)
+          & $exe t.txt --para pdf --saida saida_txt
+          & $exe saida_txt/t.pdf --para png --saida saida_pdf
+          if (!(Test-Path saida_pdf/t.png)) { throw "PDF -> PNG falhou no executável" }
+          & $exe saida_txt/t.pdf --para txt --saida saida_pdf
+          if (!(Select-String -Path saida_pdf/t.txt -Pattern "ação" -Quiet)) { throw "PDF -> TXT sem o texto esperado" }
 
       - name: Teste do menu do botão direito (registro real do Windows)
         shell: pwsh
@@ -152,3 +187,151 @@ jobs:
         with:
           name: LotusSetup
           path: dist/LotusSetup.exe
+
+  test-mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest      # Apple Silicon (M1)
+            arq: AppleSilicon
+          - os: macos-15-intel    # Intel
+            arq: Intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - name: ffmpeg (Mac)
+        # Se falhar, os testes de áudio/vídeo aparecem como skipped no log.
+        continue-on-error: true
+        timeout-minutes: 15
+        run: brew install ffmpeg
+      - name: Diagnóstico do Tk no Mac (qual passo do painel trava)
+        continue-on-error: true
+        timeout-minutes: 8
+        run: python scripts/diagnostico_tk_mac.py
+      - name: Testes (Mac)
+        timeout-minutes: 10
+        run: python -m pytest -v -rs
+      - name: Pilha nativa do travamento (se houve)
+        if: always()
+        run: |
+          if [ -f travamento-mac.txt ]; then
+            head -c 60000 travamento-mac.txt
+          else
+            echo "nenhum travamento registrado"
+          fi
+      - name: Captura de tela do app no Mac (diagnóstico)
+        continue-on-error: true
+        run: python scripts/capturar_mac.py previas-mac/lotus-mac-${{ matrix.arq }}.png
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: Previa-Mac-${{ matrix.arq }}
+          path: previas-mac/*.png
+
+  build-mac:
+    needs: test-mac
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arq: AppleSilicon
+          - os: macos-15-intel
+            arq: Intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+
+      - name: Empacotar Lotus.app
+        run: |
+          VER=$(python -c "import conversor; print(conversor.__version__)")
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.icns --add-data "conversor/recursos:conversor/recursos" --osx-bundle-identifier com.kiuwar.lotus --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --paths . packaging/app_cli.py
+          cp dist/conversor-cli dist/Lotus.app/Contents/MacOS/
+          python scripts/ajustar_app_mac.py dist/Lotus.app "$VER"
+          codesign --force --deep --sign - dist/Lotus.app
+          codesign --verify --deep --strict dist/Lotus.app
+
+      - name: Teste do app empacotado (conversões, inclusive PDF)
+        run: |
+          CLI=dist/Lotus.app/Contents/MacOS/conversor-cli
+          # Ícone da flor: no pacote (janela/Dock) e como ícone do .app.
+          find dist/Lotus.app -name lotus.png | grep -q . || { echo "lotus.png não empacotado"; exit 1; }
+          ICONE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" dist/Lotus.app/Contents/Info.plist)
+          echo "CFBundleIconFile=$ICONE"
+          test -f "dist/Lotus.app/Contents/Resources/$ICONE" || test -f "dist/Lotus.app/Contents/Resources/$ICONE.icns"
+          $CLI --listar > /dev/null
+          python -c "from PIL import Image; Image.new('RGBA',(32,32),(255,0,0,128)).save('t.png')"
+          printf 'Olá, ação\n' > t.txt
+          $CLI t.png --para pdf --saida saida
+          $CLI t.txt --para pdf --saida saida_txt
+          $CLI saida_txt/t.pdf --para png --saida saida_pdf
+          $CLI saida_txt/t.pdf --para txt --saida saida_pdf
+          test -f saida/t.pdf && test -f saida_pdf/t.png
+          grep -q "ação" saida_pdf/t.txt
+
+      - name: Teste da Ação Rápida instalada pelo app
+        run: |
+          APP=dist/Lotus.app/Contents/MacOS/Lotus
+          $APP --instalar-menu --silencioso
+          WF="$HOME/Library/Services/Converter com Lotus.workflow"
+          test -f "$WF/Contents/document.wflow"
+          plutil -lint "$WF/Contents/Info.plist" "$WF/Contents/document.wflow"
+          plutil -extract actions.0.action.ActionParameters.COMMAND_STRING raw "$WF/Contents/document.wflow" | tee cmd.txt
+          grep -q "Lotus.app" cmd.txt
+          $APP --remover-menu --silencioso
+          test ! -e "$WF"
+
+      - name: Gerar o .dmg (arrastar para Aplicativos)
+        run: |
+          mkdir -p dmg && cp -R dist/Lotus.app dmg/ && ln -s /Applications dmg/Aplicativos
+          hdiutil create -volname "Lotus" -srcfolder dmg -ov -format UDZO "dist/Lotus-Mac-${{ matrix.arq }}.dmg"
+          hdiutil attach -nobrowse -readonly -mountpoint /tmp/lotusdmg "dist/Lotus-Mac-${{ matrix.arq }}.dmg"
+          test -x /tmp/lotusdmg/Lotus.app/Contents/MacOS/Lotus
+          /tmp/lotusdmg/Lotus.app/Contents/MacOS/conversor-cli --listar | head -3
+          hdiutil detach /tmp/lotusdmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lotus-Mac-${{ matrix.arq }}
+          path: dist/Lotus-Mac-${{ matrix.arq }}.dmg
+
+  publicar:
+    # Só quando pedido (execução manual com "publicar") ou ao criar uma tag v*.
+    if: (github.event_name == 'workflow_dispatch' && inputs.publicar) || startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pacotes
+      - name: Publicar a Release (Windows + Mac)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(python3 -c "import conversor; print(conversor.__version__)")
+          TAG="v$VER"
+          ARQS="pacotes/LotusSetup/LotusSetup.exe pacotes/Lotus-Mac-AppleSilicon/Lotus-Mac-AppleSilicon.dmg pacotes/Lotus-Mac-Intel/Lotus-Mac-Intel.dmg"
+          for f in $ARQS; do test -f "$f" || { echo "faltando: $f"; exit 1; }; done
+          SHAS=$(cd pacotes && sha256sum */*.exe */*.dmg | sed 's|^|    |')
+          NOTAS=$(printf 'Lotus %s.\n\n- Windows: LotusSetup.exe (por usuário, sem administrador).\n- Mac Apple Silicon (M1/M2/M3/M4): Lotus-Mac-AppleSilicon.dmg\n- Mac Intel: Lotus-Mac-Intel.dmg\n\nSem assinatura paga: no Windows, SmartScreen → Mais informações → Executar assim mesmo. No Mac, na 1ª abertura: Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.\n\nSHA-256:\n%s\n' "$VER" "$SHAS")
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" $ARQS --clobber
+          else
+            gh release create "$TAG" $ARQS --target "$GITHUB_SHA" --title "Lotus $VER" --notes "$NOTAS"
+          fi
+          echo "Release publicada: $TAG"

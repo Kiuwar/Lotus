@@ -186,3 +186,121 @@ def test_threads_do_not_leak_after_stop():
     g.parar()
     g.join(5)
     assert threading.active_count() == antes
+
+
+# ---------- painel em janela em camadas (0.5.0) ----------
+
+def test_layered_struct_sizes():
+    from conversor.ui import camadas
+
+    assert ctypes.sizeof(camadas.BLENDFUNCTION) == 4
+    assert ctypes.sizeof(camadas.BITMAPINFOHEADER) == 40
+    assert ctypes.sizeof(camadas.BITMAPINFO) == 44
+
+
+def _bombear(root, cond, limite=15):
+    fim = time.time() + limite
+    while not cond() and time.time() < fim:
+        root.update()
+        time.sleep(0.03)
+    return cond()
+
+
+def test_layered_panel_real_mouse_hover_click_and_click_through(tmp_path):
+    """Mouse do sistema (SendInput/SetCursorPos) sobre o painel de verdade."""
+    import tkinter as tk
+
+    from conversor.atalho import painel as mod
+    from conversor.atalho import winapi
+    from conversor.ui import camadas, tema
+
+    from .conftest import make_sample
+
+    src = make_sample("png", tmp_path)
+    root = tk.Tk()
+    root.withdraw()
+    try:
+        p = mod.Painel(root, [str(src)], 600, 450, tema.Aparencia(modo="claro"))
+        root.update()
+        assert isinstance(p.superficie, camadas.SuperficieCamadas), "caiu na reserva (veja o log)"
+        estilo = camadas.user32.GetWindowLongPtrW(p.superficie.hwnd, camadas.GWL_EXSTYLE)
+        assert estilo & camadas.WS_EX_LAYERED
+
+        alvo = next(i for i in p.layout.itens if i.fmt == "jpg")
+        ax, ay = p.pos[0] + round(alvo.x), p.pos[1] + round(alvo.y)
+
+        # Canto (transparente): o clique tem de ir para trás, não para o painel.
+        raiz_canto = winapi.janela_raiz_no_ponto(p.pos[0] + 2, p.pos[1] + 2)
+        assert raiz_canto != p.superficie.hwnd, "canto transparente está capturando cliques"
+        assert winapi.janela_raiz_no_ponto(ax, ay) == p.superficie.hwnd
+
+        eventos = []  # diagnóstico: quais eventos o Tk recebeu de fato
+        for ev in ("<Motion>", "<Enter>", "<Button-1>"):
+            p.top.bind(ev, lambda e, n=ev: eventos.append(n), add="+")
+
+        assert winapi.mover_mouse(ax, ay) == 1
+        assert _bombear(root, lambda: p.hover == "jpg"), \
+            f"hover não chegou (hover={p.hover}, cursor={p.top.winfo_pointerxy()}, alvo={(ax, ay)}, eventos={eventos})"
+
+        winapi.soltar_modificadores_e_clicar(set())  # clique esquerdo real no "JPG"
+        assert _bombear(root, lambda: p.fechado, 30), \
+            f"não converteu/fechou (estados={p.estados}, eventos={eventos})"
+        assert (src.parent / "amostra.jpg").is_file()
+    finally:
+        root.destroy()
+
+
+def test_desktop_selection_via_shell():
+    """Lê a seleção da área de trabalho pelo COM (FindWindowSW, SWC_DESKTOP)."""
+    from conversor.atalho import selecao
+
+    selecao.iniciar_com()
+    try:
+        mesa = selecao._janela_da_mesa()
+    except Exception as e:  # registra o formato real do erro no log do CI
+        pytest.fail(f"FindWindowSW falhou: {e!r}")
+    if mesa is None:
+        pytest.skip("este runner não tem área de trabalho do Explorer")
+    r = selecao.selecoes_mesa()
+    assert set(r) == {0} and isinstance(r[0], list)
+
+
+# ---------- ícone ao lado do relógio (bandeja) ----------
+
+def test_tray_pywin32_names_exist():
+    import importlib
+
+    from conversor.atalho.bandeja import NOMES_BANDEJA
+
+    faltando = [f"{m}.{n}" for m, nomes in NOMES_BANDEJA.items()
+                for n in nomes if not hasattr(importlib.import_module(m), n)]
+    assert not faltando, faltando
+
+
+def test_tray_icon_appears_menu_command_queues_and_icon_goes_away():
+    import queue
+
+    import win32con
+    import win32gui
+
+    from conversor.atalho import bandeja
+    from conversor.ui import icone
+
+    comandos: queue.Queue = queue.Queue()
+    b = bandeja.Bandeja(comandos, str(icone.caminho("lotus.ico")), True, "Ctrl+Shift+clique esquerdo")
+    b.start()
+    assert b.pronto.wait(10)
+    assert b.erro is None, b.erro
+    if not b.visivel:
+        b.parar()
+        b.join(5)
+        pytest.skip("este runner não tem a área de notificação do Explorer")
+    # Escolher "Converter arquivos…" no menu = WM_COMMAND com o id do item.
+    win32gui.PostMessage(b.hwnd, win32con.WM_COMMAND, 1002, 0)
+    assert comandos.get(timeout=5) == bandeja.CONVERTER
+    # Duplo clique no ícone = mensagem do ícone com WM_LBUTTONDBLCLK.
+    win32gui.PostMessage(b.hwnd, bandeja.Bandeja.MSG_ICONE, 0, win32con.WM_LBUTTONDBLCLK)
+    assert comandos.get(timeout=5) == bandeja.ABRIR
+    b.parar()
+    b.join(5)
+    assert not b.is_alive() and not b.visivel, "ao fechar, o ícone tem de sair da bandeja"

@@ -198,21 +198,143 @@ iniciar o agente. No Linux o teste passava porque esse caminho só roda no
 Windows. Agora o erro vai para o log e o diagnóstico informa "NÃO está
 rodando".
 
+## 4.3. PDF como origem e Word (versão 0.4.0)
+
+**Problema relatado (fato):** na 0.3.0, ao adicionar um PDF, o campo
+"Converter para" ficava vazio e o botão Converter mostrava "Adicione arquivos
+válidos e escolha o formato". Causa: o registro não tinha nenhuma conversão
+com PDF como origem (`targets_for("pdf") == []`), e a interface não explicava
+isso. Não era defeito do motor; era escopo + mensagem ruim.
+
+**Correção:**
+- PDF → PNG/JPG com pypdfium2 (PDFium), uma imagem por página; o motor ganhou
+  saídas múltiplas (`multi=True`): pasta temporária, validação de cada
+  arquivo, nome final só no fim; pasta existente nunca é sobrescrita.
+- PDF → TXT com pypdf; PDF escaneado falha com explicação (sem OCR).
+- DOCX ↔ PDF via Microsoft Word (COM), disponível só com Word instalado, com
+  limite de tempo que encerra apenas a instância aberta pelo Lotus.
+- Mensagens: coluna Situação ("sem conversão para ZIP", "indisponível: requer
+  o Microsoft Word") e motivo ao lado de "Converter para".
+
+**Verificado:** conteúdo das imagens (tamanho em pixels da página A4 a
+150 DPI, página não em branco), texto com acentos e separação por página,
+PDF com senha, PDF só com senha de dono, falha no meio sem sobrar pasta,
+executável PyInstaller convertendo PDF (Linux aqui; Windows no CI).
+
+**NÃO verificado (sem Word no CI):** DOCX → PDF e PDF → DOCX com o Word de
+verdade. A sequência de chamadas foi conferida com um Word simulado e as
+constantes na documentação da Microsoft, mas só o teste no seu PC confirma.
+Também não verificado: se o Word mostra algum aviso ao abrir PDF mesmo com
+`DisplayAlerts = wdAlertsNone` (nesse caso, o limite de 3 minutos encerra a
+instância e o Lotus explica).
+
+## 4.4. Novo design estilo macOS e área de trabalho (versão 0.5.0)
+
+**Decisões (com o usuário):** painel radial com os formatos separados por
+grupo (arcos coloridos com rótulo); some ao clicar fora; moldura própria
+na janela principal (Windows 10 não arredonda janelas); personalização de
+cores, temas, tamanho, opacidade e forma; tema claro/escuro do sistema.
+
+**Como os cantos ficam lisos no Windows 10 (fato):** o painel é uma janela
+em camadas (`UpdateLayeredWindow`) com transparência por pixel, desenhada
+com Pillow em 3× e reduzida. A janela principal usa `SetWindowRgn` (cantos
+recortados; a borda do recorte é de 1 pixel, sem suavização — limitação do
+Windows 10; no 11 o sistema suaviza).
+
+**Verificado no CI Windows real:** a janela em camadas é criada; o canto
+transparente deixa o clique passar para trás; mouse físico simulado
+(SendInput) destaca a caixa e o clique converte; seleção da área de
+trabalho via `FindWindowSW` funciona.
+
+**Achado pelo CI e corrigido:** o painel em camadas não recebia `<Motion>`
+quando o cursor era movido; agora consulta a posição do cursor a cada 30 ms.
+
+**Verificado aqui (Linux):** geometria (sem sobreposição em todos os
+formatos e tamanhos), contraste de todos os temas, pixels do desenho,
+moldura (maximizar, arrastar, redimensionar, fechar), janela Aparência.
+As imagens da galeria foram olhadas a cada mudança; dois defeitos visuais
+achados assim foram corrigidos (rótulos cortados/fora do disco; texto
+escuro no botão azul).
+
+**NÃO verificado (teste manual seu):** o gesto real na área de trabalho e
+no Explorer; a aparência no seu Windows 10 (fontes Segoe UI, escala de
+tela); barra de tarefas/Alt+Tab com a moldura própria; minimizar e
+restaurar pela barra de tarefas.
+
+## 4.5. Versão para Mac (0.6.0)
+
+**O que existe:** app de conversão (todas as conversões, menos as do Word),
+Ação Rápida "Converter com Lotus" no clique direito do Finder, painel por
+atalho (padrão ⌥ Option+⇧ Shift+clique, no Finder e na Mesa) e `.dmg` para
+Apple Silicon e Intel.
+
+**Fontes usadas para não inventar:** estrutura do workflow do Automator
+copiada de workflows reais (repositório mb21/Pandoc-Mac-OS-X-Services;
+artigo de andrewbaker.ninja de 2026-09-08 para a parte do Finder); nomes do
+Quartz/AppKit são os da API C da Apple, conferidos um a um no CI do Mac;
+pyobjc 12.2.2 (MIT, universal2) conferido no PyPI; executores macOS
+(`macos-latest` = Apple Silicon, `macos-15-intel` = Intel) conferidos na
+documentação do GitHub.
+
+**Verificado no CI do Mac (quando ficar verde):** testes completos; nomes
+do pyobjc existem; o workflow gerado é executado pelo `automator` e recebe
+o arquivo; painel transparente criado; gancho sem permissão explica o que
+fazer; `.app` empacotado converte (inclusive PDF); Ação Rápida instalada
+pelo app aponta para o Lotus.app; `.dmg` monta e contém o app.
+
+**NÃO verificado (teste manual seu):** permissões reais de Acessibilidade e
+Automação; o gesto no Finder/Mesa; a Ação Rápida aparecendo no menu do
+Finder; Gatekeeper ("Abrir Mesmo Assim"); aparência do painel transparente
+(o CI tenta um print, mas o macOS pode bloquear a captura de tela).
+
+## 4.6. Versão 0.7.0: mais formatos, ícone ao lado do relógio e flor de lótus
+
+**Decisões e por quê:**
+- **DOCX/PPTX → texto sem Office** com `zipfile` + `defusedxml`, sem
+  `python-docx`/`python-pptx`: as duas puxariam `lxml` (biblioteca compilada,
+  pacote maior em cada sistema). O formato (ECMA-376) é XML dentro de ZIP;
+  `defusedxml` já vinha com o `fpdf2` e protege contra XML malicioso.
+- **Estilos de título pelo NOME, não pelo ID:** o Word em português grava o
+  ID localizado (`Ttulo1`), mas o nome interno é sempre `heading 1`
+  (`word/styles.xml`). Ler só o ID quebraria todo documento em português.
+- **Constantes do Office** conferidas na documentação da Microsoft e listadas
+  no topo de `office.py`; o vigia de tempo do Word virou genérico e vale para
+  o PowerPoint.
+- **Ícone ao lado do relógio** com a API do pywin32 conferida no exemplo
+  oficial do projeto; a thread só enfileira comandos (regra 11). O CI do
+  Windows provou: ícone entra, menu e duplo clique chegam, ícone sai.
+- **Ícone da flor** desenhado por código (sem imagem de terceiros, sem
+  licença a checar); tamanhos ≤ 32 px têm desenho próprio (mais legível).
+
+**Erros que os testes pegaram nesta versão (e a lição):**
+- Painel radial: a distância mínima entre caixas só valia na horizontal; na
+  diagonal duas caixas se sobrepunham. Só apareceu com 12 caixas (vídeo).
+  Lição: geometria se testa com o pior caso real, não com o caso típico.
+- "Mais…" enchia os grupos em ordem e o grupo Vídeo sumia inteiro.
+- MPEG-2 só aceita taxas de quadros padrão; este ffmpeg aceitou 10 q/s, mas
+  outras versões recusam — a taxa é ajustada pela regra do formato, não pelo
+  comportamento de uma versão.
+- Codificador interno do Opus/Vorbis só funciona em modo experimental e com
+  limites (48 kHz / 2 canais): descoberto rodando o ffmpeg, não lendo.
+- `--listar` dizia "requer ffmpeg" para conversões do Word.
+
+**NÃO verificado (teste manual seu):** conversões reais com Word e
+PowerPoint instalados (o CI não tem Office); aparência do ícone ao lado do
+relógio no seu Windows 10; abrir *Configurar atalho…* e *Aparência…* pelo
+ícone.
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office
   (automação COM) ou LibreOffice instalado. Pode ser adicionado como
   conversão "disponível se o Office/LibreOffice estiver instalado", no mesmo
   modelo do ffmpeg.
-- **PDF → Word editável:** não há conversão offline confiável; resultados
-  variam muito conforme o PDF. Não recomendado prometer.
-- **PDF → imagem:** exige um renderizador (ex.: PyMuPDF, licença AGPL — que
-  obrigaria abrir o código do app se distribuído; avaliar antes).
+- **PDF → Word sem o Microsoft Word:** não há conversão offline confiável.
+  Com Word, o resultado é aproximado (ver 4.3).
+- **OCR (PDF escaneado → texto):** não incluído (exigiria Tesseract).
 - **Vários arquivos no botão direito:** o Explorer abre um processo por
   arquivo, então cada um mostra seu aviso. Juntar tudo numa janela só
   exigiria um mecanismo de instância única (ou extensão COM do Explorer).
-- **Painel flutuante na área de trabalho:** não suportado (só janelas de
-  pastas do Explorer). A área de trabalho exige outra interface COM.
 - **Arrastar e soltar** na janela: tkinter puro não suporta; dá para abrir
   arquivos arrastando-os sobre o ícone do `.exe` (já tratado em `gui.main`).
 - **Assinatura de código:** o `.exe` não é assinado; o Windows SmartScreen
