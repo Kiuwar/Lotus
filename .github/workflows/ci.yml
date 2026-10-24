@@ -307,6 +307,9 @@ jobs:
           test -f saida_doc2/doc.pdf
           printf '{\\rtf1\\ansi Peti\\'"'"'e7\\'"'"'e3o\\par}' > doc.rtf
           $CLI doc.rtf --para docx --saida saida_rtf && test -f saida_rtf/doc.docx
+          # Diagnóstico do painel pelo app empacotado (AXIsProcessTrusted via ctypes, codesign).
+          $CLI --diagnostico-mac | tee diagnostico.txt
+          grep -q "Diagnóstico do painel no Mac" diagnostico.txt
 
       - name: Teste da Ação Rápida instalada pelo app
         run: |

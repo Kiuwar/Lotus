@@ -72,16 +72,36 @@ configuração (`%APPDATA%\Lotus`) e os arquivos convertidos são mantidos.
 2. Abra o `.dmg` e arraste o **Lotus** para **Aplicativos**.
 3. Na 1ª abertura o macOS bloqueia apps sem assinatura paga da Apple:
    **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**.
-4. Para o painel por atalho (⌥ Option+⇧ Shift+clique): **Ajustes do
-   Sistema → Privacidade e Segurança → Acessibilidade → ative o Lotus**.
+4. **Ligue o painel por atalho** (ele vem desligado): no Lotus,
+   *Ferramentas → Atalho do painel flutuante…* → marque **Ligar o painel
+   flutuante** → **Salvar**.
+5. Dê a permissão de **Acessibilidade**: *Ajustes do Sistema → Privacidade
+   e Segurança → Acessibilidade → ative o Lotus*. Depois **desligue e ligue
+   o painel** de novo (o Lotus só tenta usar a permissão ao ligar).
    Na primeira vez que o painel ler os arquivos selecionados, o Mac pede
    para o Lotus controlar o **Finder**: clique em **Permitir**.
-5. Clique direito: *Ferramentas → Instalar Ação Rápida do Finder*; depois,
+6. Clique direito: *Ferramentas → Instalar Ação Rápida do Finder*; depois,
    no Finder, clique direito num arquivo → **Ações Rápidas → Converter com
    Lotus**.
 
+**⌥ Option+⇧ Shift+clique não faz nada?** Abra o Lotus → *Ferramentas →
+Diagnóstico do painel flutuante (Mac)…*. Ele mostra, item por item, o que
+falta (painel desligado, Acessibilidade, Automação do Finder, app rodando de
+dentro do .dmg…) e como resolver. Não altera nada e não usa a internet. Os
+casos mais comuns:
+
+- **Painel desligado** (passo 4).
+- **Permissão dada depois de ligar o painel**: desligue e ligue o painel.
+- **Atualizou o Lotus e a permissão "não pega"**: o Lotus não tem assinatura
+  paga da Apple, e cada versão tem uma assinatura nova. Em *Acessibilidade*,
+  selecione Lotus, clique em **−**, depois em **+** e escolha
+  `/Applications/Lotus.app`.
+- **Lotus aberto de dentro do .dmg ou da pasta Downloads**: mova para
+  *Aplicativos* e abra de lá.
+
 No Mac a janela usa a moldura nativa do sistema (já arredondada, com as
-bolinhas). Conversões pelo Microsoft Word (DOCX↔PDF) existem só no Windows.
+bolinhas). Conversões pelo Microsoft Word existem só no Windows; no Mac,
+DOCX, DOC, RTF e ODT são convertidos pelo `textutil` do próprio macOS.
 
 ## Como usar
 

@@ -22,6 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instalar-menu", action="store_true", help="instala o menu do botão direito (Windows)")
     p.add_argument("--remover-menu", action="store_true", help="remove o menu do botão direito (Windows)")
     p.add_argument("--reparar", action="store_true", help="diagnostica e repara a instalação")
+    p.add_argument("--diagnostico-mac", action="store_true",
+                   help="mostra por que o painel por atalho não abre no Mac (não altera nada)")
     p.add_argument("--versao", action="version", version=f"%(prog)s {__version__}")
     return p
 
@@ -39,6 +41,15 @@ def main(argv: list[str] | None = None) -> int:
             # O motivo vem do próprio conversor (ffmpeg, Word, PowerPoint…).
             flag = "" if c.available() else f"  (indisponível: {c.notes or 'componente ausente'})"
             print(f"{c.category:10} {c.source:>5} -> {c.target}{flag}")
+        return 0
+
+    if args.diagnostico_mac:
+        if sys.platform != "darwin":
+            print("O diagnóstico do painel é do Mac. No Windows, use --reparar.", file=sys.stderr)
+            return 2
+        from conversor.atalho import diagnostico_mac
+
+        print(diagnostico_mac.executar())
         return 0
 
     if args.reparar:

@@ -16,6 +16,8 @@ Todos os nomes do Quartz/AppKit usados aqui são conferidos no CI do Mac
 
 from __future__ import annotations
 
+import datetime as dt
+import json
 import os
 import plistlib
 import queue
@@ -45,6 +47,28 @@ NOMES_QUARTZ = [
     "kCGEventFlagMaskAlternate", "kCGEventFlagMaskCommand", "CGWindowListCopyWindowInfo",
     "kCGWindowListOptionOnScreenOnly", "kCGNullWindowID", "kCGWindowBounds", "kCGWindowOwnerPID",
 ]
+
+
+# Application Services (HIServices), chamado por ctypes (sem dependência nova).
+# Conferido na documentação da Apple: AXIsProcessTrusted() -> Bool, macOS 10.4+,
+# "Returns whether the current process is a trusted accessibility client."
+APPLICATION_SERVICES = "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices"
+NOMES_AX = ["AXIsProcessTrusted"]
+
+
+def ax_confiavel() -> bool | None:
+    """True/False: este processo tem a permissão de Acessibilidade. None: não deu para saber."""
+    import ctypes
+
+    try:
+        lib = ctypes.cdll.LoadLibrary(APPLICATION_SERVICES)
+        fn = lib.AXIsProcessTrusted
+    except (OSError, AttributeError):
+        get_logger().exception("AXIsProcessTrusted indisponível")
+        return None
+    fn.argtypes = []
+    fn.restype = ctypes.c_bool  # Boolean (unsigned char) em C
+    return bool(fn())
 
 
 # ---------- lógica pura (testada em qualquer sistema) ----------
@@ -143,6 +167,34 @@ def parada_pedida() -> bool:
         p.unlink(missing_ok=True)
         return True
     return False
+
+
+def gravar_estado_agente(gancho_ok: bool, erro: str | None, ax: bool | None) -> None:
+    """Relatório do agente para o diagnóstico (a janela de aviso pode ter ficado
+    escondida; este arquivo não some)."""
+    import sys
+
+    estado = {"pid": os.getpid(), "inicio": dt.datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+              "gancho_ok": gancho_ok, "erro": erro, "ax_confiavel": ax, "executavel": sys.executable}
+    try:
+        _arq("estado-agente.json").write_text(json.dumps(estado, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        get_logger().exception("não foi possível gravar o estado do agente")
+
+
+def ler_estado_agente() -> dict | None:
+    """Relatório do agente que está rodando agora (None se não há ou é de um agente antigo)."""
+    try:
+        estado = json.loads(_arq("estado-agente.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not agente_rodando():
+        return None
+    try:
+        dono = int(_arq("agente.lock").read_text().strip() or 0)
+    except (OSError, ValueError):
+        dono = 0
+    return estado if not dono or estado.get("pid") == dono else None
 
 
 def plist_launchd(programa: list[str]) -> bytes:
@@ -303,6 +355,9 @@ def executar() -> int:
     gancho = GanchoMac(cfg.gatilho, trabalho, cliques)
     gancho.start()
     gancho.pronto.wait(5)
+    gravar_estado_agente(gancho.erro is None and gancho.pronto.is_set(),
+                         gancho.erro or (None if gancho.pronto.is_set() else "o gancho não respondeu em 5 s"),
+                         ax_confiavel())
     threading.Thread(target=trabalhador, args=(trabalho, saida), daemon=True).start()
 
     root = tk.Tk()

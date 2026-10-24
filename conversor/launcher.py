@@ -7,6 +7,7 @@
     Lotus.exe --instalar-menu          instala o menu do botão direito
     Lotus.exe --remover-menu           remove o menu
     Lotus.exe --reparar                diagnostica e repara
+    Lotus --diagnostico-mac            por que o painel não abre no Mac (só mostra)
 
 Nenhum erro é engolido: falhas inesperadas vão para o log e aparecem numa
 caixa de mensagem (o .exe com janela não tem console para mostrar erros).
@@ -148,6 +149,15 @@ def dispatch(argv: list[str]) -> int:
             return 0
         n = shell.uninstall()
         _show(f"Lotus removido do sistema (menu em {n} tipos de arquivo, atalho e início automático).")
+        return 0
+
+    if argv and argv[0] == "--diagnostico-mac":
+        from conversor.atalho import diagnostico_mac
+
+        if sys.platform != "darwin":
+            _show("O diagnóstico do painel é do Mac. No Windows, use --reparar.", error=True)
+            return 2
+        _show(diagnostico_mac.executar())
         return 0
 
     if argv and argv[0] == "--reparar":

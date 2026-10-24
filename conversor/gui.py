@@ -13,7 +13,7 @@ from conversor import __version__
 from conversor.core import registry
 from conversor.core.detect import DetectionError, detect
 from conversor.core.engine import ConversionError, convert_file
-from conversor.logs import registrar_erros_tcl
+from conversor.logs import get_logger, registrar_erros_tcl
 from conversor.ui.icone import aplicar_icone
 
 
@@ -181,6 +181,8 @@ class App(ttk.Frame):
         tools.add_command(label=f"Remover {nome_menu}", command=self.uninstall_menu, state=suportado)
         tools.add_separator()
         tools.add_command(label="Diagnosticar e reparar", command=self.diagnose)
+        if sys.platform == "darwin":
+            tools.add_command(label="Diagnóstico do painel flutuante (Mac)…", command=self.diagnose_mac)
         tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
         self.tools_menu = tools
         if self.moldura is not None and self.moldura.propria:
@@ -241,6 +243,24 @@ class App(ttk.Frame):
 
         for line in diagnostics.run():
             self._log(line)
+
+    def diagnose_mac(self) -> None:
+        """Roda em thread (o osascript pode esperar a pergunta de permissão do
+        macOS); a thread só devolve texto pela fila (regra 11)."""
+        fila: queue.Queue = queue.Queue()
+        self._log("Diagnóstico do painel no Mac: verificando (pode aparecer um pedido de permissão)…")
+        threading.Thread(target=_diagnostico_mac, args=(fila,), daemon=True).start()
+        self.after(200, self._poll_diag, fila)
+
+    def _poll_diag(self, fila: queue.Queue) -> None:
+        try:
+            texto = fila.get_nowait()
+        except queue.Empty:
+            self.after(200, self._poll_diag, fila)
+            return
+        for linha in texto.splitlines():
+            self._log(linha)
+        messagebox.showinfo("Lotus — diagnóstico do painel", texto, parent=self)
 
     def open_log_dir(self) -> None:
         from conversor.logs import log_dir
@@ -356,6 +376,16 @@ class App(ttk.Frame):
         self.log.insert("end", msg + "\n")
         self.log.see("end")
         self.log.configure(state="disabled")
+
+
+def _diagnostico_mac(fila: queue.Queue) -> None:
+    from conversor.atalho import diagnostico_mac
+
+    try:
+        fila.put(diagnostico_mac.executar())
+    except Exception as e:  # noqa: BLE001 - o diagnóstico nunca pode derrubar a janela
+        get_logger().exception("diagnóstico do Mac")
+        fila.put(f"O diagnóstico falhou: {e}. Detalhes no log.")
 
 
 def _work(events: queue.Queue, jobs, target, out_dir, overwrite) -> None:
