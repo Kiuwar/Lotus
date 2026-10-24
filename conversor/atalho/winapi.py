@@ -117,6 +117,8 @@ user32.GetCursorPos.argtypes = [ctypes.POINTER(w.POINT)]
 user32.GetCursorPos.restype = w.BOOL
 user32.SetCursorPos.argtypes = [ctypes.c_int, ctypes.c_int]
 user32.SetCursorPos.restype = w.BOOL
+user32.GetSystemMetrics.argtypes = [ctypes.c_int]
+user32.GetSystemMetrics.restype = ctypes.c_int
 user32.SendInput.argtypes = [w.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
 user32.SendInput.restype = w.UINT
 
@@ -166,6 +168,14 @@ def classe(hwnd) -> str:
     return buf.value
 
 
+def classes_no_ponto(x: int, y: int) -> tuple[str, str]:
+    """(classe da janela raiz, classe da janela mais interna) sob o ponto."""
+    h = user32.WindowFromPoint(w.POINT(x, y))
+    if not h:
+        return "", ""
+    return classe(user32.GetAncestor(h, GA_ROOT)), classe(h)
+
+
 def janela_raiz_no_ponto(x: int, y: int):
     h = user32.WindowFromPoint(w.POINT(x, y))
     return user32.GetAncestor(h, GA_ROOT) if h else None
@@ -187,6 +197,21 @@ def _mouse(flags: int) -> INPUT:
     i = INPUT(type=INPUT_MOUSE)
     i.mi = MOUSEINPUT(dx=0, dy=0, mouseData=0, dwFlags=flags, time=0, dwExtraInfo=0)
     return i
+
+
+MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE = 0x0001, 0x8000
+SM_CXSCREEN, SM_CYSCREEN = 0, 1
+
+
+def mover_mouse(x: int, y: int) -> int:
+    """Move o cursor como um mouse físico (SendInput, coordenadas 0..65535)."""
+    largura = max(user32.GetSystemMetrics(SM_CXSCREEN) - 1, 1)
+    altura = max(user32.GetSystemMetrics(SM_CYSCREEN) - 1, 1)
+    i = INPUT(type=INPUT_MOUSE)
+    i.mi = MOUSEINPUT(dx=round(x * 65535 / largura), dy=round(y * 65535 / altura), mouseData=0,
+                      dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, time=0, dwExtraInfo=0)
+    arr = (INPUT * 1)(i)
+    return user32.SendInput(1, arr, ctypes.sizeof(INPUT))
 
 
 def soltar_modificadores_e_clicar(mods: set[str]) -> int:

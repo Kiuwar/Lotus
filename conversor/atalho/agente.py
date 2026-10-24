@@ -58,11 +58,11 @@ class Gancho(threading.Thread):
                 if botao == "x":
                     botao = "lateral1" if (info.mouseData >> 16) == 1 else "lateral2"
                 injetado = bool(info.flags & (winapi.LLMHF_INJECTED | winapi.LLMHF_LOWER_IL_INJECTED))
-                classe = ""
+                classe, filho = "", ""
                 if apertou and not injetado and botao == self.detector.gatilho.botao:
-                    classe = winapi.classe(winapi.janela_raiz_no_ponto(info.pt.x, info.pt.y))
+                    classe, filho = winapi.classes_no_ponto(info.pt.x, info.pt.y)
                 mods = winapi.modificadores_pressionados() if apertou else set()
-                acao = self.detector.evento(botao, apertou, mods, injetado, classe)
+                acao = self.detector.evento(botao, apertou, mods, injetado, classe, filho)
                 if (apertou and not injetado and acao == gesto.PASSAR and self.cliques is not None
                         and self.painel_aberto.is_set()):
                     self.cliques.put((info.pt.x, info.pt.y))
@@ -103,7 +103,8 @@ class Gancho(threading.Thread):
                 if msg.message == winapi.WM_HOTKEY and msg.wParam == ID_TECLA:
                     hwnd = winapi.user32.GetForegroundWindow()
                     x, y = winapi.posicao_cursor()
-                    if winapi.classe(hwnd) in gesto.CLASSES_EXPLORER:
+                    classe_fg = winapi.classe(hwnd)
+                    if classe_fg in gesto.CLASSES_EXPLORER or gesto.eh_mesa(classe_fg):
                         self.trabalho.put(("tecla", int(hwnd), x, y, frozenset()))
                 elif msg.message == MSG_RECARREGAR and self.novo_gatilho is not None:
                     self.gatilho = self.novo_gatilho
@@ -134,17 +135,19 @@ def trabalhador(trabalho: queue.Queue, saida: queue.Queue) -> None:
             return
         tipo, hwnd, x, y, mods = item
         try:
+            ler = selecao.selecoes_mesa if gesto.eh_mesa(winapi.classe(hwnd)) else (
+                lambda h=hwnd: selecao.selecoes(h))
             if tipo == "mouse":
-                antes = selecao.selecoes(hwnd)
+                antes = ler()
                 winapi.soltar_modificadores_e_clicar(set(mods))
                 caminhos: list[str] = []
                 for _ in range(10):  # o Explorer atualiza a seleção em alguns ms
                     time.sleep(0.05)
-                    caminhos = gesto.escolher_aba(antes, selecao.selecoes(hwnd))
+                    caminhos = gesto.escolher_aba(antes, ler())
                     if caminhos:
                         break
             else:
-                abas = selecao.selecoes(hwnd)
+                abas = ler()
                 caminhos = next((c for c in abas.values() if c), [])
             arquivos = selecao.apenas_arquivos(caminhos)
             if arquivos:

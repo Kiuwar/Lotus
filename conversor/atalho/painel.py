@@ -79,6 +79,7 @@ class Painel:
             # No Windows o "clique fora" vem do gancho de mouse do agente
             # (clique_global): a janela de ferramenta pode perder o foco ao surgir.
             self.top.bind("<FocusOut>", lambda _e: self._fora())
+        self._rastrear()
         self.top.focus_force()
         # De novo após a janela aparecer de fato: sem foco, o Esc não chega.
         self.top.after(30, lambda: None if self.fechado else self.top.focus_force())
@@ -102,6 +103,24 @@ class Painel:
     def _mover(self, e) -> None:
         self._set_hover(self.layout.hit_test(e.x, e.y))
         self._reiniciar_ocioso()
+
+    def _rastrear(self) -> None:
+        """Acompanha o cursor consultando a posição (não depende só de <Motion>,
+        que pode não chegar numa janela em camadas)."""
+        if self.fechado:
+            return
+        try:
+            px, py = self.top.winfo_pointerxy()
+        except tk.TclError:
+            return
+        if self.contem(px, py):
+            alvo = self.layout.hit_test(px - self.pos[0], py - self.pos[1])
+            if alvo != self.hover:
+                self._set_hover(alvo)
+                self._reiniciar_ocioso()
+        elif self.hover is not None:
+            self._set_hover(None)
+        self.top.after(30, self._rastrear)
 
     def _clicar(self, e) -> None:
         alvo = self.layout.hit_test(e.x, e.y)

@@ -234,11 +234,32 @@ def test_layered_panel_real_mouse_hover_click_and_click_through(tmp_path):
         assert raiz_canto != p.superficie.hwnd, "canto transparente está capturando cliques"
         assert winapi.janela_raiz_no_ponto(ax, ay) == p.superficie.hwnd
 
-        winapi.user32.SetCursorPos(ax, ay)
-        assert _bombear(root, lambda: p.hover == "jpg"), f"hover não chegou (hover={p.hover})"
+        eventos = []  # diagnóstico: quais eventos o Tk recebeu de fato
+        for ev in ("<Motion>", "<Enter>", "<Button-1>"):
+            p.top.bind(ev, lambda e, n=ev: eventos.append(n), add="+")
+
+        assert winapi.mover_mouse(ax, ay) == 1
+        assert _bombear(root, lambda: p.hover == "jpg"), \
+            f"hover não chegou (hover={p.hover}, cursor={p.top.winfo_pointerxy()}, alvo={(ax, ay)}, eventos={eventos})"
 
         winapi.soltar_modificadores_e_clicar(set())  # clique esquerdo real no "JPG"
-        assert _bombear(root, lambda: p.fechado, 30), f"não converteu/fechou (estados={p.estados})"
+        assert _bombear(root, lambda: p.fechado, 30), \
+            f"não converteu/fechou (estados={p.estados}, eventos={eventos})"
         assert (src.parent / "amostra.jpg").is_file()
     finally:
         root.destroy()
+
+
+def test_desktop_selection_via_shell():
+    """Lê a seleção da área de trabalho pelo COM (FindWindowSW, SWC_DESKTOP)."""
+    from conversor.atalho import selecao
+
+    selecao.iniciar_com()
+    try:
+        mesa = selecao._janela_da_mesa()
+    except Exception as e:  # registra o formato real do erro no log do CI
+        pytest.fail(f"FindWindowSW falhou: {e!r}")
+    if mesa is None:
+        pytest.skip("este runner não tem área de trabalho do Explorer")
+    r = selecao.selecoes_mesa()
+    assert set(r) == {0} and isinstance(r[0], list)

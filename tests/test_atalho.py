@@ -121,6 +121,19 @@ def test_gesture_passes_through_otherwise(botao, mods, injetado, classe):
     assert d.evento(botao, False, set(), injetado, classe) == gesto.PASSAR
 
 
+@pytest.mark.parametrize("raiz,filho,esperado", [
+    ("Progman", "SysListView32", gesto.DISPARAR),    # ícones da área de trabalho
+    ("WorkerW", "SysListView32", gesto.DISPARAR),    # idem, com papel de parede animado
+    ("Progman", "SHELLDLL_DefView", gesto.PASSAR),   # espaço vazio fora da lista
+    ("WorkerW", "", gesto.PASSAR),                   # papel de parede
+    ("Chrome_WidgetWin_1", "SysListView32", gesto.PASSAR),  # lista em outro programa
+    ("CabinetWClass", "DirectUIHWND", gesto.DISPARAR),      # pasta do Explorer
+])
+def test_desktop_icons_are_accepted_only_on_the_icon_list(raiz, filho, esperado):
+    d = _det()
+    assert d.evento("esquerdo", True, {"ctrl", "shift"}, False, raiz, filho) == esperado
+
+
 def test_keyboard_trigger_never_fires_from_mouse():
     d = _det(Gatilho(CTRL_SHIFT, "tecla", tecla="K"))
     assert d.evento("esquerdo", True, {"ctrl", "shift"}, False, "CabinetWClass") == gesto.PASSAR
