@@ -47,6 +47,17 @@ jobs:
       - name: Testes (Linux, com display virtual para a interface)
         if: runner.os == 'Linux'
         run: xvfb-run -a python -m pytest -v -rs
+
+      - name: Galeria de prévias do design (painel e janelas)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a -s "-screen 0 1280x900x24" python scripts/gerar_previas.py previas
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: Galeria-de-design
+          path: |
+            previas/*.png
+            previas/painel/*.png
       - name: Testes (Windows)
         if: runner.os == 'Windows'
         # O choco instala atalhos em C:\ProgramData\chocolatey\bin, que já está no PATH.

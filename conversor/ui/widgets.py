@@ -174,6 +174,7 @@ def aplicar_estilo_ttk(root: tk.Misc, pal: Paleta) -> ttk.Style:
     st.configure("TRadiobutton", background=pal.superficie, foreground=pal.texto)
     st.configure("Treeview", background=pal.superficie, fieldbackground=pal.superficie,
                  foreground=pal.texto, rowheight=26, borderwidth=0)
+    st.layout("Treeview", [("Treeview.treearea", {"sticky": "nswe"})])  # sem moldura própria
     st.map("Treeview", background=[("selected", sel)], foreground=[("selected", pal.texto)])
     st.configure("Treeview.Heading", background=pal.superficie, foreground=pal.texto_sec,
                  relief="flat", font=FONTE_NEGRITO)

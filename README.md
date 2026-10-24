@@ -51,9 +51,14 @@ janela com um botão para cada formato possível.
 - Com vários arquivos selecionados, o Explorer abre uma conversão por
   arquivo (um aviso para cada um).
 
-**Painel flutuante (Ctrl+Shift+clique):** numa janela do Explorer, segure
-**Ctrl+Shift** e clique num arquivo: aparece, junto do cursor, um painel com
-um botão para cada formato possível. Clique no formato e pronto. *Esc* fecha.
+**Painel flutuante (Ctrl+Shift+clique):** numa pasta do Explorer **ou na
+área de trabalho**, segure **Ctrl+Shift** e clique num arquivo: aparece, em
+volta do cursor, um painel redondo com os formatos **separados por grupo**
+(Imagem, Documento, Texto e dados, Áudio, Vídeo), cada um num arco colorido
+próprio. Passe o mouse para destacar e clique para converter: a caixa mostra
+"…" e depois ✓ (ou ✕ com a explicação). O painel some sozinho após o ✓, com
+*Esc*, clicando fora, clicando no centro ou após 15 s sem uso. Com mais de 12
+formatos, a caixa **Mais…** abre a lista completa.
 
 - O atalho é configurável em *Ferramentas → Atalho do painel flutuante…*:
   qualquer combinação de Ctrl/Shift/Alt/Win com qualquer botão do mouse
@@ -62,10 +67,19 @@ um botão para cada formato possível. Clique no formato e pronto. *Esc* fecha.
 - O app recusa atalhos que travariam o uso normal (ex.: clique esquerdo sem
   nenhuma tecla) e avisa sobre conflitos (ex.: Ctrl+clique, que o Windows
   usa para selecionar vários arquivos).
-- Funciona nas janelas de pastas do Explorer. **Não funciona na área de
-  trabalho** nem dentro de outros programas (lá o clique segue normal).
+- Na área de trabalho, só vale o clique **sobre os ícones**.
 - Roda em segundo plano (processo `Lotus.exe`) e inicia com o Windows
   enquanto estiver ligado. Para desligar: desmarque a opção na mesma janela.
+
+**Aparência (Ferramentas → Aparência…):** estilo macOS, com prévia ao vivo.
+- Temas prontos: **Sistema, Grafite, Azul Mac, Rosa, Verde**.
+- Claro/escuro: segue o Windows ou fixo.
+- Cores: destaque, fundo e **uma cor por grupo** de formatos.
+- Tamanho (pequeno/médio/grande), opacidade do fundo (60–100%) e forma
+  (radial ou cartão em lista).
+- A janela principal tem moldura própria com cantos arredondados e as
+  "bolinhas" de fechar/minimizar/maximizar. Se preferir a moldura padrão do
+  Windows, há uma opção na mesma janela.
 
 **Linha de comando:**
 

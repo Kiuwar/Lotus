@@ -181,8 +181,11 @@ def contraste(a: str, b: str) -> float:
     return (la + 0.05) / (lb + 0.05)
 
 
-def texto_sobre(fundo: str) -> str:
-    """Branco ou quase-preto, o que tiver mais contraste sobre `fundo`."""
+def texto_sobre(fundo: str, minimo_branco: float = 3.0) -> str:
+    """Cor do texto sobre um fundo colorido. Como no macOS, prefere branco
+    (ex.: botão azul) quando o contraste chega a 3:1; senão, o de maior contraste."""
+    if contraste("#FFFFFF", fundo) >= minimo_branco:
+        return "#FFFFFF"
     return "#FFFFFF" if contraste("#FFFFFF", fundo) >= contraste("#1D1D1F", fundo) else "#1D1D1F"
 
 

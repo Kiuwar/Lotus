@@ -228,6 +228,39 @@ Também não verificado: se o Word mostra algum aviso ao abrir PDF mesmo com
 `DisplayAlerts = wdAlertsNone` (nesse caso, o limite de 3 minutos encerra a
 instância e o Lotus explica).
 
+## 4.4. Novo design estilo macOS e área de trabalho (versão 0.5.0)
+
+**Decisões (com o usuário):** painel radial com os formatos separados por
+grupo (arcos coloridos com rótulo); some ao clicar fora; moldura própria
+na janela principal (Windows 10 não arredonda janelas); personalização de
+cores, temas, tamanho, opacidade e forma; tema claro/escuro do sistema.
+
+**Como os cantos ficam lisos no Windows 10 (fato):** o painel é uma janela
+em camadas (`UpdateLayeredWindow`) com transparência por pixel, desenhada
+com Pillow em 3× e reduzida. A janela principal usa `SetWindowRgn` (cantos
+recortados; a borda do recorte é de 1 pixel, sem suavização — limitação do
+Windows 10; no 11 o sistema suaviza).
+
+**Verificado no CI Windows real:** a janela em camadas é criada; o canto
+transparente deixa o clique passar para trás; mouse físico simulado
+(SendInput) destaca a caixa e o clique converte; seleção da área de
+trabalho via `FindWindowSW` funciona.
+
+**Achado pelo CI e corrigido:** o painel em camadas não recebia `<Motion>`
+quando o cursor era movido; agora consulta a posição do cursor a cada 30 ms.
+
+**Verificado aqui (Linux):** geometria (sem sobreposição em todos os
+formatos e tamanhos), contraste de todos os temas, pixels do desenho,
+moldura (maximizar, arrastar, redimensionar, fechar), janela Aparência.
+As imagens da galeria foram olhadas a cada mudança; dois defeitos visuais
+achados assim foram corrigidos (rótulos cortados/fora do disco; texto
+escuro no botão azul).
+
+**NÃO verificado (teste manual seu):** o gesto real na área de trabalho e
+no Explorer; a aparência no seu Windows 10 (fontes Segoe UI, escala de
+tela); barra de tarefas/Alt+Tab com a moldura própria; minimizar e
+restaurar pela barra de tarefas.
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office
@@ -240,8 +273,6 @@ instância e o Lotus explica).
 - **Vários arquivos no botão direito:** o Explorer abre um processo por
   arquivo, então cada um mostra seu aviso. Juntar tudo numa janela só
   exigiria um mecanismo de instância única (ou extensão COM do Explorer).
-- **Painel flutuante na área de trabalho:** não suportado (só janelas de
-  pastas do Explorer). A área de trabalho exige outra interface COM.
 - **Arrastar e soltar** na janela: tkinter puro não suporta; dá para abrir
   arquivos arrastando-os sobre o ícone do `.exe` (já tratado em `gui.main`).
 - **Assinatura de código:** o `.exe` não é assinado; o Windows SmartScreen

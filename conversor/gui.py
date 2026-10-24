@@ -55,16 +55,23 @@ def motivo_sem_destino(formats: list[str]) -> str | None:
 
 
 class App(ttk.Frame):
-    def __init__(self, master: tk.Tk):
-        super().__init__(master, padding=10)
+    def __init__(self, master: tk.Misc, pal=None, moldura=None):
+        from conversor.ui import tema
+        from conversor.ui.widgets import aplicar_estilo_ttk
+
+        self.pal = pal or tema.paleta(tema.carregar())
+        aplicar_estilo_ttk(master, self.pal)
+        super().__init__(master, padding=(16, 8, 16, 12), style="Fundo.TFrame")
         self.master = master
+        self.moldura = moldura
         self.files: dict[str, str] = {}  # id da linha -> caminho
         self.formats: dict[str, str] = {}  # id da linha -> formato detectado
         self.events: queue.Queue = queue.Queue()
         self.worker: threading.Thread | None = None
 
-        master.title(f"Lotus {__version__}")
-        master.minsize(720, 480)
+        top = master.winfo_toplevel()
+        top.title(f"Lotus {__version__}")
+        top.minsize(760, 560)
         self.grid(sticky="nsew")
         master.columnconfigure(0, weight=1)
         master.rowconfigure(0, weight=1)
@@ -73,80 +80,97 @@ class App(ttk.Frame):
     # ---------- montagem ----------
 
     def _build(self) -> None:
-        self._build_menubar()
-        bar = ttk.Frame(self)
-        bar.grid(row=0, column=0, sticky="ew")
-        ttk.Button(bar, text="Adicionar arquivos…", command=self.add_dialog).pack(side="left")
-        ttk.Button(bar, text="Remover selecionados", command=self.remove_selected).pack(side="left", padx=6)
-        ttk.Button(bar, text="Limpar", command=self.clear).pack(side="left")
+        from conversor.ui.widgets import BotaoPilula, Cartao
 
-        self.tree = ttk.Treeview(self, columns=("fmt", "status"), height=10)
-        self.tree.heading("#0", text="Arquivo")
+        p = self.pal
+        self._build_menubar()
+
+        bar = ttk.Frame(self, style="Fundo.TFrame")
+        bar.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        BotaoPilula(bar, "＋  Adicionar arquivos…", command=self.add_dialog, pal=p).pack(side="left")
+        BotaoPilula(bar, "Remover selecionados", command=self.remove_selected, pal=p).pack(side="left", padx=8)
+        BotaoPilula(bar, "Limpar", command=self.clear, pal=p).pack(side="left")
+
+        lista = Cartao(self, p, pad=6)
+        lista.fixar_altura()
+        lista.grid(row=1, column=0, sticky="nsew")
+        self.tree = ttk.Treeview(lista.interior, columns=("fmt", "status"), height=8)
+        self.tree.heading("#0", text="Arquivo", anchor="w")
         self.tree.heading("fmt", text="Formato")
-        self.tree.heading("status", text="Situação")
+        self.tree.heading("status", text="Situação", anchor="w")
         self.tree.column("#0", width=380)
         self.tree.column("fmt", width=80, anchor="center")
         self.tree.column("status", width=220)
-        self.tree.grid(row=1, column=0, sticky="nsew", pady=8)
+        self.tree.pack(fill="both", expand=True)
 
-        opts = ttk.Frame(self)
-        opts.grid(row=2, column=0, sticky="ew")
-        ttk.Label(opts, text="Converter para:").grid(row=0, column=0, sticky="w")
+        opcoes = Cartao(self, p)
+        opcoes.grid(row=2, column=0, sticky="ew", pady=10)
+        opts = opcoes.interior
+        ttk.Label(opts, text="Converter para").grid(row=0, column=0, sticky="w")
         self.target = tk.StringVar()
         self.target_box = ttk.Combobox(opts, textvariable=self.target, state="readonly", width=10)
-        self.target_box.grid(row=0, column=1, sticky="w", padx=6)
-        self.hint = ttk.Label(opts, text="", foreground="#a00", wraplength=440, justify="left")
+        self.target_box.grid(row=0, column=1, sticky="w", padx=8)
+        self.hint = ttk.Label(opts, text="", style="Aviso.TLabel", wraplength=440, justify="left")
         self.hint.grid(row=0, column=2, columnspan=2, sticky="w")
 
         self.same_dir = tk.BooleanVar(value=True)
         ttk.Checkbutton(
             opts, text="Salvar na mesma pasta do arquivo", variable=self.same_dir,
             command=self._toggle_out_dir,
-        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0))
         self.out_dir = tk.StringVar()
         self.out_entry = ttk.Entry(opts, textvariable=self.out_dir, width=50, state="disabled")
-        self.out_entry.grid(row=2, column=0, columnspan=2, sticky="ew")
-        self.out_btn = ttk.Button(opts, text="Escolher pasta…", command=self.pick_out_dir, state="disabled")
-        self.out_btn.grid(row=2, column=2, padx=6)
+        self.out_entry.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        self.out_btn = BotaoPilula(opts, "Escolher pasta…", command=self.pick_out_dir, pal=p,
+                                   fundo=p.superficie, altura=28, state="disabled")
+        self.out_btn.grid(row=2, column=2, padx=8, pady=(4, 0), sticky="w")
 
         self.overwrite = tk.BooleanVar(value=False)
         ttk.Checkbutton(
             opts, text="Sobrescrever arquivos existentes", variable=self.overwrite
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(8, 0))
 
-        run = ttk.Frame(self)
-        run.grid(row=3, column=0, sticky="ew", pady=8)
-        self.convert_btn = ttk.Button(run, text="Converter", command=self.start)
+        run = ttk.Frame(self, style="Fundo.TFrame")
+        run.grid(row=3, column=0, sticky="ew")
+        self.convert_btn = BotaoPilula(run, "Converter", command=self.start, pal=p, primario=True,
+                                       largura=150, altura=36)
         self.convert_btn.pack(side="left")
         self.progress = ttk.Progressbar(run, mode="determinate")
-        self.progress.pack(side="left", fill="x", expand=True, padx=8)
+        self.progress.pack(side="left", fill="x", expand=True, padx=12)
 
-        self.log = tk.Text(self, height=7, state="disabled", wrap="word")
-        self.log.grid(row=4, column=0, sticky="nsew")
+        registro = Cartao(self, p, pad=8)
+        registro.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        self.log = tk.Text(registro.interior, height=5, state="disabled", wrap="word", bd=0,
+                           highlightthickness=0, bg=p.superficie, fg=p.texto, insertbackground=p.texto)
+        self.log.pack(fill="both", expand=True)
 
         ttk.Label(
             self,
             text="Os arquivos são processados apenas neste computador. Nada é enviado à internet.",
-            foreground="#555",
-        ).grid(row=5, column=0, sticky="w", pady=(6, 0))
+            style="Fundo.TLabel",
+        ).grid(row=5, column=0, sticky="w", pady=(8, 0))
 
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
-        self.rowconfigure(4, weight=1)
 
     def _build_menubar(self) -> None:
-        menubar = tk.Menu(self.master)
-        tools = tk.Menu(menubar, tearoff=False)
+        tools = tk.Menu(self.master, tearoff=False)
         on_windows = "normal" if sys.platform == "win32" else "disabled"
-        on_windows_or_dev = "normal"  # a janela de configuração funciona em qualquer sistema
+        tools.add_command(label="Aparência…", command=self.configure_appearance)
+        tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey)
+        tools.add_separator()
         tools.add_command(label="Instalar menu do botão direito", command=self.install_menu, state=on_windows)
         tools.add_command(label="Remover menu do botão direito", command=self.uninstall_menu, state=on_windows)
-        tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey, state=on_windows_or_dev)
         tools.add_separator()
         tools.add_command(label="Diagnosticar e reparar", command=self.diagnose)
         tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
-        menubar.add_cascade(label="Ferramentas", menu=tools)
-        self.master.configure(menu=menubar)
+        self.tools_menu = tools
+        if self.moldura is not None and self.moldura.propria:
+            self.moldura.definir_menu(tools)  # botão "Ferramentas ▾" da barra de título
+        else:
+            menubar = tk.Menu(self.master)
+            menubar.add_cascade(label="Ferramentas", menu=tools)
+            self.master.winfo_toplevel().configure(menu=menubar)
 
     # ---------- ferramentas ----------
 
@@ -165,6 +189,11 @@ class App(ttk.Frame):
         from conversor import shell
 
         self._log(f"Menu removido de {shell.uninstall()} tipos de arquivo.")
+
+    def configure_appearance(self) -> None:
+        from conversor.ui.janela_aparencia import JanelaAparencia
+
+        JanelaAparencia(self.master.winfo_toplevel())
 
     def configure_hotkey(self) -> None:
         from conversor.atalho.janela_config import JanelaAtalho
@@ -201,7 +230,7 @@ class App(ttk.Frame):
                 status = situacao_arquivo(fmt)
             except DetectionError as e:
                 fmt, status = "?", str(e)
-            iid = self.tree.insert("", "end", text=p, values=(fmt.upper(), status))
+            iid = self.tree.insert("", "end", text=Path(p).name, values=(fmt.upper(), status))
             self.files[iid] = p
             if fmt != "?":
                 self.formats[iid] = fmt
@@ -326,10 +355,18 @@ def _enable_dpi_awareness() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from conversor.ui import tema
+    from conversor.ui.moldura import Moldura, centralizar
+
     files = sys.argv[1:] if argv is None else argv
     _enable_dpi_awareness()
     root = tk.Tk()
-    app = App(root)
+    aparencia = tema.carregar()
+    pal = tema.paleta(aparencia)
+    propria = sys.platform == "win32" and not aparencia.moldura_windows
+    moldura = Moldura(root, pal, f"Lotus {__version__}", propria=propria)
+    centralizar(root, 860, 680)
+    app = App(moldura.conteudo, pal=pal, moldura=moldura)
     if files:  # "Abrir com" / arrastar arquivos sobre o .exe
         app.add_files(files)
     root.mainloop()

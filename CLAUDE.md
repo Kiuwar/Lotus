@@ -23,6 +23,12 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
   (atalho e validação), `gesto.py` (lógica pura do gesto), `winapi.py`
   (ctypes), `selecao.py` (seleção do Explorer via COM), `agente.py`
   (processo em segundo plano), `painel.py`, `janela_config.py`, `controle.py`.
+- `conversor/ui/` — visual estilo macOS: `tema.py` (temas, cores, contraste),
+  `grupos.py`, `radial.py` (geometria pura do painel), `render.py` (desenho
+  Pillow 3× + cache), `camadas.py` (janela em camadas do Windows),
+  `widgets.py` (pílula, cartão, estilo ttk), `moldura.py` (moldura própria),
+  `janela_aparencia.py`.
+- `scripts/gerar_previas.py` — imagens do design (artefato "Galeria-de-design" no CI).
 - `installer/lotus.iss` — instalador Inno Setup (gerado e testado no CI).
 - `docs/FORMATOS.md` — GERADO por `scripts/gerar_formatos.py`. Não editar à mão.
 - `docs/ANALISE.md` — por que o projeto é assim e como evitar erros de IA.
@@ -82,3 +88,9 @@ python -m conversor --listar
     (`wdFormatPDF=17`, `wdFormatDocumentDefault=16`, `wdAlertsNone=0`).
     Sem Word no CI: a lógica é testada com Word simulado e o uso real é
     teste manual — nunca dizer que foi verificado.
+18. **Design:** toda mudança visual passa pela galeria
+    (`scripts/gerar_previas.py`) e é OLHADA antes do commit. Texto precisa de
+    contraste ≥ 4,5:1 (`tema.legivel`); exceção: texto branco em botão
+    colorido a partir de 3:1 (padrão macOS, `tema.texto_sobre`).
+19. **Janela em camadas:** pixel com alfa > 0 captura cliques; sombras
+    passam pelo corte de alfa < 8 em `render.desenhar_base`.
