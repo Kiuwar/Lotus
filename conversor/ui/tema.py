@@ -38,6 +38,7 @@ class Paleta:
     destaque: str     # cor de foco/hover
     grupos: dict      # nome do grupo -> cor
     escuro: bool
+    efeito: str = ""  # "holo": anel iridescente, vidro e brilho neon (render.py)
 
 
 # (claro, escuro) para cada tema pronto
@@ -50,8 +51,19 @@ _MAC_ESCURO = dict(fundo="#1C1C1E", superficie="#2C2C2E", texto="#F5F5F7", texto
                                                "Texto e dados": "#30D158", "Áudio": "#BF5AF2",
                                                "Vídeo": "#FF375F"})
 
+# Holográfico: claro = perolado; escuro = vidro azul-noite com neon.
+_HOLO_CLARO = dict(fundo="#F3F4FB", superficie="#FFFFFF", texto="#15172B", texto_sec="#585C78",
+                   destaque="#6C4DFF", efeito="holo",
+                   grupos={"Imagem": "#E0409F", "Documento": "#0091D5", "Texto e dados": "#13A884",
+                           "Áudio": "#7B57F5", "Vídeo": "#E07B12"})
+_HOLO_ESCURO = dict(fundo="#0A0E1F", superficie="#141A33", texto="#EEF1FF", texto_sec="#A9B0D6",
+                    destaque="#00E5FF", efeito="holo",
+                    grupos={"Imagem": "#FF6AD5", "Documento": "#00D1FF", "Texto e dados": "#5CFFC1",
+                            "Áudio": "#B18CFF", "Vídeo": "#FFB46B"})
+
 PRESETS: dict[str, tuple[dict, dict]] = {
     "Sistema": (_MAC_CLARO, _MAC_ESCURO),
+    "Holográfico": (_HOLO_CLARO, _HOLO_ESCURO),
     "Grafite": (
         dict(_MAC_CLARO, fundo="#E8E8ED", destaque="#48484A",
              grupos=dict.fromkeys(GRUPOS, "#636366")),
@@ -158,6 +170,7 @@ def paleta(a: Aparencia, escuro: bool | None = None) -> Paleta:
         destaque=a.destaque or base["destaque"],
         grupos=grupos,
         escuro=escuro,
+        efeito=base.get("efeito", ""),
     )
 
 
