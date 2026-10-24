@@ -67,6 +67,13 @@ def check(path: Path, fmt: str) -> str | None:
             return f"XLSX ilegível: {e}"
         return None
 
+    if fmt in {"pptx", "odt", "odp", "xps", "rtf"}:
+        real = sniff(path)
+        return None if real == fmt else f"não é um {fmt.upper()} válido (conteúdo: {real})"
+
+    if fmt in {"doc", "ppt"}:
+        return None if sniff(path) == "ole2" else f"não é um {fmt.upper()} (Office 97–2003) válido"
+
     if fmt == "docx":
         # Um DOCX é um zip com word/document.xml; sniff() já confere isso.
         return None if sniff(path) == "docx" else "não é um DOCX válido (falta word/document.xml)"

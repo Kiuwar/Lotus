@@ -36,6 +36,10 @@ _FAMILIES = [
 ]
 
 
+OLE2 = bytes.fromhex("d0cf11e0a1b11ae1")  # Compound File (Office 97–2003)
+OFFICE_ANTIGO = {"doc", "ppt", "xls"}
+
+
 class DetectionError(Exception):
     pass
 
@@ -103,16 +107,29 @@ def sniff(path: Path) -> str | None:
         return "mp4"
     if head.startswith(b"\x1a\x45\xdf\xa3"):
         return "webm" if b"webm" in head else "mkv"
+    if head.startswith(b"{\\rtf"):
+        return "rtf"
+    if head[:8] == OLE2:
+        return "ole2"  # .doc/.ppt/.xls antigos: o contêiner é o mesmo; a extensão decide
     if head.startswith(b"PK\x03\x04"):
         try:
             with zipfile.ZipFile(path) as z:
                 names = set(z.namelist())
-        except zipfile.BadZipFile:
+                mime = z.read("mimetype")[:100] if "mimetype" in names else b""
+        except (zipfile.BadZipFile, KeyError, OSError):
             return None
         if "xl/workbook.xml" in names:
             return "xlsx"
         if "word/document.xml" in names:
             return "docx"
+        if "ppt/presentation.xml" in names:
+            return "pptx"
+        if mime == b"application/vnd.oasis.opendocument.text":
+            return "odt"
+        if mime == b"application/vnd.oasis.opendocument.presentation":
+            return "odp"
+        if any(n.lower().endswith(".fdseq") for n in names):
+            return "xps"  # pacote XPS: tem uma sequência de documentos fixos
         return "zip"
     return None
 
@@ -151,6 +168,14 @@ def detect(path: Path) -> Detection:
                 )
             return Detection(ext)
         raise DetectionError(f"{path.name}: formato não reconhecido.")
+
+    if magic == "ole2":
+        if ext in OFFICE_ANTIGO:
+            return Detection(ext)
+        raise DetectionError(
+            f"{path.name}: é um arquivo do Office antigo (Word .doc, PowerPoint .ppt ou Excel .xls), "
+            "mas a extensão não diz qual. Como resolver: renomeie com a extensão certa."
+        )
 
     if magic == ext or _same_family(magic, ext):
         return Detection(ext)

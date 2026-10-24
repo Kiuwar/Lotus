@@ -11,7 +11,9 @@ from conversor.ui.tema import GRUPOS
 FAMILIA = {
     "png": "Imagem", "jpg": "Imagem", "webp": "Imagem", "bmp": "Imagem",
     "gif": "Imagem", "tiff": "Imagem", "ico": "Imagem",
-    "pdf": "Documento", "docx": "Documento", "html": "Documento",
+    "pdf": "Documento", "docx": "Documento", "html": "Documento", "doc": "Documento",
+    "rtf": "Documento", "odt": "Documento", "xps": "Documento",
+    "pptx": "Documento", "ppt": "Documento", "odp": "Documento",
     "txt": "Texto e dados", "md": "Texto e dados", "csv": "Texto e dados",
     "json": "Texto e dados", "xlsx": "Texto e dados",
     "mp3": "Áudio", "wav": "Áudio", "ogg": "Áudio", "flac": "Áudio", "m4a": "Áudio",

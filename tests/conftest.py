@@ -58,6 +58,17 @@ def make_sample(fmt: str, folder: Path) -> Path:
         make_pdf(path, ["Página 1: ação e coração", "Página 2: São Paulo"])
     elif fmt == "docx":
         make_docx(path, "Petição: ação de cobrança")
+    elif fmt == "pptx":
+        make_pptx(path)
+    elif fmt == "odt":
+        make_opendocument(path, "application/vnd.oasis.opendocument.text")
+    elif fmt == "odp":
+        make_opendocument(path, "application/vnd.oasis.opendocument.presentation")
+    elif fmt == "rtf":
+        path.write_bytes(b"{\\rtf1\\ansi Peti\\'e7\\'e3o: a\\'e7\\'e3o de cobran\\'e7a\\par}")
+    elif fmt in {"doc", "ppt"}:
+        # Office 97–2003 só se cria com o próprio Word/PowerPoint.
+        pytest.skip(f"amostra .{fmt} exige o Office para ser criada")
     elif fmt in {"mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"}:
         _ffmpeg(["-f", "lavfi", "-i", "sine=frequency=440:duration=1"], path)
     elif fmt in {"mp4", "mkv", "webm", "avi", "mov", "wmv", "mpeg", "m4v"}:
@@ -116,6 +127,110 @@ def make_docx(path: Path, texto: str) -> Path:
             '<?xml version="1.0" encoding="UTF-8"?>'
             '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
             f'<w:body><w:p><w:r><w:t>{escape(texto)}</w:t></w:r></w:p></w:body></w:document>'))
+    return path
+
+
+_CT = "http://schemas.openxmlformats.org/package/2006/content-types"
+_PR = "http://schemas.openxmlformats.org/package/2006/relationships"
+_RT = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_WN = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+
+def make_docx_rico(path: Path) -> Path:
+    """DOCX como o Word em português grava: estilo de título com ID localizado
+    ("Ttulo1" → nome "heading 1"), negrito/itálico, link, listas, tabela,
+    imagem e rodapé."""
+    import zipfile
+
+    w = f'xmlns:w="{_WN}" xmlns:r="{_RT}"'
+    doc = (f'<?xml version="1.0" encoding="UTF-8"?><w:document {w}><w:body>'
+           '<w:p><w:pPr><w:pStyle w:val="Ttulo1"/></w:pPr><w:r><w:t>Petição inicial</w:t></w:r></w:p>'
+           '<w:p><w:r><w:t xml:space="preserve">Texto com </w:t></w:r>'
+           '<w:r><w:rPr><w:b/></w:rPr><w:t>negrito</w:t></w:r><w:r><w:t xml:space="preserve"> e </w:t></w:r>'
+           '<w:r><w:rPr><w:i/></w:rPr><w:t>itálico</w:t></w:r><w:r><w:t xml:space="preserve">, veja </w:t></w:r>'
+           '<w:hyperlink r:id="rIdLink"><w:r><w:t>o site</w:t></w:r></w:hyperlink><w:r><w:t>.</w:t></w:r></w:p>'
+           '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+           '<w:r><w:t>Primeiro pedido</w:t></w:r></w:p>'
+           '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+           '<w:r><w:t>Segundo pedido</w:t></w:r></w:p>'
+           '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr>'
+           '<w:r><w:t>Tópico solto</w:t></w:r></w:p>'
+           '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>Nome</w:t></w:r></w:p></w:tc>'
+           '<w:tc><w:p><w:r><w:t>Valor</w:t></w:r></w:p></w:tc></w:tr>'
+           '<w:tr><w:tc><w:p><w:r><w:t>Custas</w:t></w:r></w:p></w:tc>'
+           '<w:tc><w:p><w:r><w:t>R$ 10,50</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+           '<w:p><w:r><w:drawing/></w:r></w:p>'
+           '<w:p><w:del><w:r><w:delText>apagado</w:delText></w:r></w:del><w:r><w:t>Fim</w:t></w:r></w:p>'
+           '</w:body></w:document>')
+    estilos = (f'<?xml version="1.0" encoding="UTF-8"?><w:styles {w}>'
+               '<w:style w:type="paragraph" w:styleId="Ttulo1"><w:name w:val="heading 1"/></w:style>'
+               '</w:styles>')
+    numeracao = (f'<?xml version="1.0" encoding="UTF-8"?><w:numbering {w}>'
+                 '<w:abstractNum w:abstractNumId="10"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl>'
+                 '</w:abstractNum><w:abstractNum w:abstractNumId="20"><w:lvl w:ilvl="0">'
+                 '<w:numFmt w:val="bullet"/></w:lvl></w:abstractNum>'
+                 '<w:num w:numId="1"><w:abstractNumId w:val="10"/></w:num>'
+                 '<w:num w:numId="2"><w:abstractNumId w:val="20"/></w:num></w:numbering>')
+    rels = (f'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="{_PR}">'
+            f'<Relationship Id="rIdLink" Type="{_RT}/hyperlink" Target="https://exemplo.com.br/a b" '
+            'TargetMode="External"/></Relationships>')
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("[Content_Types].xml", f'<?xml version="1.0"?><Types xmlns="{_CT}"/>')
+        z.writestr("word/document.xml", doc)
+        z.writestr("word/styles.xml", estilos)
+        z.writestr("word/numbering.xml", numeracao)
+        z.writestr("word/_rels/document.xml.rels", rels)
+        z.writestr("word/footer1.xml", f'<w:ftr {w}><w:p><w:r><w:t>Página 1</w:t></w:r></w:p></w:ftr>')
+    return path
+
+
+def make_pptx(path: Path) -> Path:
+    """PPTX com 2 slides: título + tópicos (com recuo) + notas; tabela + imagem."""
+    import zipfile
+
+    ns = ('xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+          'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+          f'xmlns:r="{_RT}"')
+
+    def sp(tipo, paras):
+        ph = f'<p:ph type="{tipo}"/>' if tipo else ""
+        corpo = "".join(f'<a:p><a:pPr lvl="{nv}"/><a:r><a:t>{t}</a:t></a:r></a:p>' for t, nv in paras)
+        return (f'<p:sp><p:nvSpPr><p:cNvPr id="1" name="x"/><p:cNvSpPr/><p:nvPr>{ph}</p:nvPr></p:nvSpPr>'
+                f'<p:txBody>{corpo}</p:txBody></p:sp>')
+
+    s1 = (f'<p:sld {ns}><p:cSld><p:spTree>' + sp("title", [("Audiência de conciliação", 0)])
+          + sp("body", [("Pauta do dia", 0), ("Proposta de acordo", 1)]) + '</p:spTree></p:cSld></p:sld>')
+    s2 = (f'<p:sld {ns} show="0"><p:cSld><p:spTree>' + sp("title", [("Valores", 0)])
+          + '<p:graphicFrame><a:graphic><a:graphicData><a:tbl>'
+          '<a:tr><a:tc><a:txBody><a:p><a:r><a:t>Item</a:t></a:r></a:p></a:txBody></a:tc>'
+          '<a:tc><a:txBody><a:p><a:r><a:t>R$</a:t></a:r></a:p></a:txBody></a:tc></a:tr>'
+          '</a:tbl></a:graphicData></a:graphic></p:graphicFrame><p:pic/></p:spTree></p:cSld></p:sld>')
+    notas = (f'<p:notes {ns}><p:cSld><p:spTree>' + sp("sldImg", [])
+             + sp("body", [("Lembrar do prazo", 0)]) + '</p:spTree></p:cSld></p:notes>')
+    pres = (f'<p:presentation {ns}><p:sldIdLst><p:sldId id="256" r:id="rId2"/>'
+            '<p:sldId id="257" r:id="rId3"/></p:sldIdLst></p:presentation>')
+    rels_pres = (f'<Relationships xmlns="{_PR}">'
+                 f'<Relationship Id="rId2" Type="{_RT}/slide" Target="slides/slide1.xml"/>'
+                 f'<Relationship Id="rId3" Type="{_RT}/slide" Target="slides/slide2.xml"/></Relationships>')
+    rels_s1 = (f'<Relationships xmlns="{_PR}"><Relationship Id="rId9" Type="{_RT}/notesSlide" '
+               'Target="../notesSlides/notesSlide1.xml"/></Relationships>')
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("[Content_Types].xml", f'<?xml version="1.0"?><Types xmlns="{_CT}"/>')
+        z.writestr("ppt/presentation.xml", pres)
+        z.writestr("ppt/_rels/presentation.xml.rels", rels_pres)
+        z.writestr("ppt/slides/slide1.xml", s1)
+        z.writestr("ppt/slides/slide2.xml", s2)
+        z.writestr("ppt/slides/_rels/slide1.xml.rels", rels_s1)
+        z.writestr("ppt/notesSlides/notesSlide1.xml", notas)
+    return path
+
+
+def make_opendocument(path: Path, mime: str) -> Path:
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("mimetype", mime)  # 1º arquivo, como manda o formato
+        z.writestr("content.xml", "<office:document-content/>")
     return path
 
 

@@ -66,7 +66,7 @@ def register(
 
 def _load_all() -> None:
     # Importar os módulos executa os decoradores @register.
-    from conversor.converters import data, documents, images, media, office, pdf  # noqa: F401
+    from conversor.converters import data, documents, images, media, office, office_texto, pdf  # noqa: F401
 
 
 def all_converters() -> list[Converter]:

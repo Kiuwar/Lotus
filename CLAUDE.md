@@ -13,7 +13,9 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
 - `conversor/core/detect.py` — formato real pelo conteúdo, não pela extensão.
 - `conversor/core/validate.py` — reabre a saída antes de aceitar.
 - `conversor/converters/` — uma família de formatos por módulo
-  (`pdf.py`: PDF→PNG/JPG/TXT; `office.py`: DOCX↔PDF via Microsoft Word).
+  (`pdf.py`: PDF→PNG/JPG/TXT; `office.py`: Word e PowerPoint via COM;
+  `office_texto.py`: DOCX→TXT/MD/HTML e PPTX→TXT/MD sem Office;
+  `media.py`: áudio e vídeo via ffmpeg).
   Conversor com `multi=True` recebe uma pasta e grava várias saídas.
 - `conversor/launcher.py` — entrada do Lotus.exe (janela, menu, reparo).
 - `conversor/shell.py` — menu do botão direito (registro, HKCU).
@@ -22,7 +24,8 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
 - `conversor/atalho/` — painel flutuante (Ctrl+Shift+clique): `config.py`
   (atalho e validação), `gesto.py` (lógica pura do gesto), `winapi.py`
   (ctypes), `selecao.py` (seleção do Explorer via COM), `agente.py`
-  (processo em segundo plano), `painel.py`, `janela_config.py`, `controle.py`.
+  (processo em segundo plano), `painel.py`, `janela_config.py`, `controle.py`,
+  `bandeja.py` (ícone ao lado do relógio; só enfileira comandos).
 - `conversor/ui/` — visual estilo macOS: `tema.py` (temas, cores, contraste),
   `grupos.py`, `radial.py` (geometria pura do painel), `render.py` (desenho
   Pillow 3× + cache), `camadas.py` (janela em camadas do Windows),
@@ -91,10 +94,11 @@ python -m conversor --listar
     estrutura nova ganha teste de `sizeof` em `test_atalho_windows.py`.
 16. O que só um humano consegue testar (gesto real no Explorer) deve ser
     dito como pendente, nunca como verificado.
-17. **Word (office.py):** constantes conferidas em learn.microsoft.com
-    (`wdFormatPDF=17`, `wdFormatDocumentDefault=16`, `wdAlertsNone=0`).
-    Sem Word no CI: a lógica é testada com Word simulado e o uso real é
-    teste manual — nunca dizer que foi verificado.
+17. **Word e PowerPoint (office.py):** constantes conferidas em
+    learn.microsoft.com e listadas no topo do arquivo (WdSaveFormat,
+    PpSaveAsFileType, MsoTriState). Sem Office no CI: a lógica é testada com
+    Word/PowerPoint simulados e o uso real é teste manual — nunca dizer que
+    foi verificado. XML do Office lido só com `defusedxml` (arquivo do usuário).
 18. **Design:** toda mudança visual passa pela galeria
     (`scripts/gerar_previas.py`) e é OLHADA antes do commit. Texto precisa de
     contraste ≥ 4,5:1 (`tema.legivel`); exceção: texto branco em botão

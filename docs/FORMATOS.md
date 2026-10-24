@@ -2,7 +2,15 @@
 
 <!-- Arquivo GERADO por scripts/gerar_formatos.py. Não edite à mão. -->
 
-Total: **295 conversões**, todas cobertas por tests/test_matrix.py.
+Total: **334 conversões**, todas cobertas por tests/test_matrix.py.
+
+## Apresentação
+
+| Origem | Destinos |
+|---|---|
+| PPTX | MD, TXT |
+
+Observação: Texto e notas de cada slide (sem PowerPoint); imagens e layout não.
 
 ## Dados
 
@@ -16,12 +24,15 @@ Total: **295 conversões**, todas cobertas por tests/test_matrix.py.
 
 | Origem | Destinos |
 |---|---|
+| DOCX | HTML, MD, TXT |
 | MD | HTML |
 | TXT | PDF |
 
 Observação: Markdown com tabelas e blocos de código.
 
 Observação: Texto simples, A4, fonte 11.
+
+Observação: Texto, títulos, listas, tabelas e links (sem Word); fontes, cores e imagens não.
 
 ## Imagem
 
@@ -46,6 +57,18 @@ Observação: Uma página por imagem.
 Observação: Só o texto (sem layout). PDF escaneado não tem texto e não há OCR.
 
 Observação: Uma imagem por página (150 DPI); várias páginas vão para uma pasta.
+
+## PowerPoint
+
+| Origem | Destinos |
+|---|---|
+| ODP | JPG, PDF, PNG, PPT, PPTX |
+| PPT | JPG, ODP, PDF, PNG, PPTX |
+| PPTX | JPG, ODP, PDF, PNG, PPT |
+
+Observação: Requer o Microsoft PowerPoint instalado neste computador.
+
+Observação: Uma imagem por slide (1920 px de largura). Requer o Microsoft PowerPoint instalado neste computador.
 
 ## Vídeo
 
@@ -75,8 +98,11 @@ Observação: Requer ffmpeg instalado (veja README, seção ffmpeg).
 
 | Origem | Destinos |
 |---|---|
-| DOCX | PDF |
+| DOC | DOCX, ODT, PDF, RTF, XPS |
+| DOCX | DOC, ODT, PDF, RTF, XPS |
+| ODT | DOC, DOCX, PDF, RTF, XPS |
 | PDF | DOCX |
+| RTF | DOC, DOCX, ODT, PDF, XPS |
 
 Observação: Requer o Microsoft Word instalado neste computador.
 
