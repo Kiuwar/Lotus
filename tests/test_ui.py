@@ -95,9 +95,9 @@ def test_layout_has_no_overlap_and_fits(origem, forma, escala):
             assert d + math.hypot(it.w, it.h) / 2 < lay.fundo_r
     total = len(registry.targets_for(origem, only_available=False))
     mostrados = [i.fmt for i in lay.itens if i.fmt != radial.MAIS]
-    if total > radial.MAX_ITENS:
+    if forma == "radial" and total > radial.MAX_ITENS:
         assert len(lay.itens) == radial.MAX_ITENS and lay.itens[-1].fmt == radial.MAIS
-    else:
+    else:  # o cartão é a lista completa (é ele que o "Mais…" abre)
         assert len(mostrados) == total
 
 
@@ -188,3 +188,26 @@ def test_gallery(tmp_path):
     assert len(arquivos) == len(tema.PRESETS) * 2 * 2 * 2
     with Image.open(arquivos[0]) as im:
         assert im.size[0] > 200
+
+
+def test_every_registered_format_has_a_panel_group():
+    """Formato novo sem grupo cairia em "Texto e dados" no painel."""
+    from conversor.core import registry
+    from conversor.ui import grupos
+
+    formatos = {c.target for c in registry.all_converters()} | {c.source for c in registry.all_converters()}
+    sem_grupo = sorted(f for f in formatos if f not in grupos.FAMILIA)
+    assert not sem_grupo, sem_grupo
+
+
+def test_more_button_keeps_every_group_visible():
+    """Com mais de 12 destinos, cada grupo mostra ao menos um formato no anel."""
+    from conversor.core import registry
+    from conversor.ui import grupos, radial
+
+    g = grupos.agrupar(registry.targets_for("mp4", only_available=False))
+    assert sum(len(f) for _, f in g) > radial.MAX_ITENS
+    lay = radial.montar(g, "radial", 1.0)
+    visiveis = {i.grupo for i in lay.itens if i.fmt != radial.MAIS}
+    assert visiveis == {nome for nome, _ in g}
+    assert lay.itens[-1].fmt == radial.MAIS and len(lay.itens) == radial.MAX_ITENS

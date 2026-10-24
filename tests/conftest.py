@@ -58,12 +58,14 @@ def make_sample(fmt: str, folder: Path) -> Path:
         make_pdf(path, ["Página 1: ação e coração", "Página 2: São Paulo"])
     elif fmt == "docx":
         make_docx(path, "Petição: ação de cobrança")
-    elif fmt in {"mp3", "wav", "ogg", "flac", "m4a"}:
+    elif fmt in {"mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"}:
         _ffmpeg(["-f", "lavfi", "-i", "sine=frequency=440:duration=1"], path)
-    elif fmt in {"mp4", "mkv", "webm", "avi", "mov"}:
+    elif fmt in {"mp4", "mkv", "webm", "avi", "mov", "wmv", "mpeg", "m4v"}:
+        # MPEG-2 só aceita taxas padrão (25 aqui); os outros usam 10 quadros/s.
+        taxa = 25 if fmt == "mpeg" else 10
         _ffmpeg(
             [
-                "-f", "lavfi", "-i", "testsrc=size=64x48:rate=10:duration=1",
+                "-f", "lavfi", "-i", f"testsrc=size=64x48:rate={taxa}:duration=1",
                 "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
                 "-pix_fmt", "yuv420p", "-shortest",
             ],

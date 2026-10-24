@@ -78,14 +78,32 @@ def _limitar(grupos: list[tuple[str, list[str]]]) -> tuple[list[tuple[str, list[
     total = sum(len(f) for _, f in grupos)
     if total <= MAX_ITENS:
         return grupos, False
-    restam = MAX_ITENS - 1  # uma vaga fica para "Mais…"
-    cortado = []
-    for g, fs in grupos:
-        if restam <= 0:
+    # Uma vaga fica para "Mais…"; as outras são divididas em rodízio entre os
+    # grupos (um de cada vez), para nenhum grupo sumir inteiro no "Mais…".
+    restam = MAX_ITENS - 1
+    quantos = [0] * len(grupos)
+    while restam > 0:
+        avancou = False
+        for i, (_g, fs) in enumerate(grupos):
+            if restam > 0 and quantos[i] < len(fs):
+                quantos[i] += 1
+                restam -= 1
+                avancou = True
+        if not avancou:
             break
-        cortado.append((g, fs[:restam]))
-        restam -= len(cortado[-1][1])
-    return cortado, True
+    return [(g, fs[:k]) for (g, fs), k in zip(grupos, quantos) if k], True
+
+
+def _angulos(grupos, tem_mais: bool, passo: float, lacuna: float) -> list[float]:
+    """Ângulo (graus) do centro de cada caixa, na mesma ordem do desenho."""
+    ang = -90.0 + (lacuna * passo / 2 if lacuna else 0)
+    saida = []
+    for _g, fmts in list(grupos) + ([(None, [MAIS])] if tem_mais else []):
+        for _f in fmts:
+            saida.append(ang + passo / 2)
+            ang += passo
+        ang += lacuna * passo
+    return saida
 
 
 def radial(grupos: list[tuple[str, list[str]]], escala: float = 1.0) -> Layout:
@@ -101,6 +119,16 @@ def radial(grupos: list[tuple[str, list[str]]], escala: float = 1.0) -> Layout:
     corda_min = w + 10 * escala
     r_vizinho = (corda_min / 2) / math.sin(math.radians(min(passo, 179) / 2))
     r_anel = max(100 * escala, centro_r + h / 2 + 18 * escala, r_vizinho if n > 1 else 0)
+    # A corda mínima só vale na horizontal; na diagonal (~30°) duas caixas
+    # podem se sobrepor mesmo assim. Cresce o anel até nenhum par se tocar.
+    angulos = _angulos(grupos, tem_mais, passo, lacuna)
+    folga = 6 * escala
+    for _ in range(60):
+        pts = [(r_anel * math.cos(math.radians(a)), r_anel * math.sin(math.radians(a))) for a in angulos]
+        if not any(abs(p[0] - q[0]) < w + folga and abs(p[1] - q[1]) < h + folga
+                   for i, p in enumerate(pts) for q in pts[i + 1:]):
+            break
+        r_anel *= 1.03
     r_int, r_ext = r_anel - h / 2 - 7 * escala, r_anel + h / 2 + 7 * escala
     r_rot = r_ext + 11 * escala                # rótulos ficam DENTRO do disco
     fundo_r = r_ext + 22 * escala

@@ -14,7 +14,8 @@ from pathlib import Path
 from conversor.core.detect import sniff
 
 IMAGE_FORMATS = {"png", "jpg", "webp", "bmp", "gif", "tiff", "ico"}
-MEDIA_FORMATS = {"mp3", "wav", "ogg", "flac", "m4a", "mp4", "mkv", "webm", "avi", "mov"}
+MEDIA_FORMATS = {"mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff",
+                 "mp4", "mkv", "webm", "avi", "mov", "wmv", "mpeg", "m4v"}
 
 
 def check(path: Path, fmt: str) -> str | None:

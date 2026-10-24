@@ -235,6 +235,122 @@ def test_ogg_without_libvorbis_uses_internal_encoder_and_warns(tmp_path, monkeyp
     assert any("libvorbis" in w for w in r.warnings)
 
 
+def _probe(path):
+    import subprocess
+
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries",
+         "stream=codec_type,codec_name,width,nb_frames:format=duration", "-of", "json", str(path)],
+        capture_output=True, text=True, check=True).stdout
+    return json.loads(out)
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+@pytest.mark.parametrize("alvo,codec", [("aac", "aac"), ("opus", "opus"), ("wma", "wmav2"),
+                                        ("aiff", "pcm_s16be")])
+def test_new_audio_formats_have_right_codec_and_duration(sample, tmp_path, alvo, codec):
+    r = convert_file(sample("mp3"), alvo, out_dir=tmp_path)
+    info = _probe(r.output)
+    assert [s["codec_name"] for s in info["streams"]] == [codec]
+    assert 0.5 < float(info["format"]["duration"]) < 2.0
+    assert detect(r.output).fmt == alvo, "o arquivo gerado é reconhecido pelo conteúdo"
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+@pytest.mark.parametrize("alvo,codec_video", [("wmv", "wmv2"), ("mpeg", "mpeg2video"), ("m4v", "h264")])
+def test_new_video_formats_keep_video_and_audio(sample, tmp_path, alvo, codec_video):
+    r = convert_file(sample("mp4"), alvo, out_dir=tmp_path)
+    tipos = {s["codec_type"]: s["codec_name"] for s in _probe(r.output)["streams"]}
+    assert tipos.get("video") == codec_video and "audio" in tipos
+    assert detect(r.output).fmt == alvo
+
+
+@pytest.mark.parametrize("fps,taxa,aviso", [
+    (25.0, None, False), (30000 / 1001, None, False), (10.0, "24000/1001", False),
+    (15.0, "24000/1001", False), (26.0, "30000/1001", False), (120.0, "60", True), (None, None, False),
+])
+def test_mpeg2_frame_rate_rule(fps, taxa, aviso):
+    r, a = media.fps_mpeg2(fps)
+    assert r == taxa and bool(a) is aviso
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+def test_mpeg_from_nonstandard_frame_rate_uses_a_standard_one(sample, tmp_path):
+    src = sample("mp4")  # 10 quadros/s
+    r = convert_file(src, "mpeg", out_dir=tmp_path)
+    import subprocess
+
+    taxa = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries",
+                           "stream=r_frame_rate", "-of", "csv=p=0", str(r.output)],
+                          capture_output=True, text=True, check=True).stdout.strip().rstrip(",")
+    assert taxa == "24000/1001"
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+def test_video_to_gif_is_animated_and_warns_about_sound(sample, tmp_path):
+    r = convert_file(sample("mp4"), "gif", out_dir=tmp_path)
+    with Image.open(r.output) as g:
+        assert g.n_frames >= 5 and g.width <= 480
+    assert any("não tem som" in w for w in r.warnings)
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+@pytest.mark.parametrize("alvo", ["png", "jpg"])
+def test_video_frame_is_an_image_of_the_video_size(sample, tmp_path, alvo):
+    r = convert_file(sample("mp4"), alvo, out_dir=tmp_path)
+    with Image.open(r.output) as im:
+        assert im.size == (64, 48)
+        cores = im.convert("RGB").getcolors(64 * 48)
+        assert cores is None or len(cores) > 5, "quadro de teste colorido, não uma imagem lisa"
+    assert any("única imagem" in w for w in r.warnings)
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+def test_audio_to_mp4_has_black_video_and_the_audio(sample, tmp_path):
+    r = convert_file(sample("mp3"), "mp4", out_dir=tmp_path)
+    info = _probe(r.output)
+    tipos = {s["codec_type"]: s["codec_name"] for s in info["streams"]}
+    assert tipos == {"video": "h264", "audio": "aac"}
+    assert 0.5 < float(info["format"]["duration"]) < 2.0
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+def test_video_without_audio_explains_instead_of_failing_obscurely(tmp_path):
+    import subprocess
+
+    mudo = tmp_path / "mudo.mp4"
+    subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-f", "lavfi",
+                    "-i", "testsrc=size=64x48:rate=10:duration=1", "-pix_fmt", "yuv420p", str(mudo)],
+                   check=True)
+    with pytest.raises(ConversionError, match="não tem faixa de áudio"):
+        convert_file(mudo, "mp3", out_dir=tmp_path / "out")
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+def test_opus_without_libopus_uses_internal_encoder_and_warns(sample, tmp_path, monkeypatch):
+    real = media.tem_codificador
+    monkeypatch.setattr(media, "tem_codificador", lambda n: n != "libopus" and real(n))
+    r = convert_file(sample("wav"), "opus", out_dir=tmp_path)
+    assert [s["codec_name"] for s in _probe(r.output)["streams"]] == ["opus"]
+    assert any("libopus" in w for w in r.warnings)
+
+
+@pytest.mark.parametrize("nome,conteudo,esperado", [
+    ("a.aiff", b"FORM\x00\x00\x00\x10AIFFCOMM", "aiff"),
+    ("a.aif", b"FORM\x00\x00\x00\x10AIFFCOMM", "aiff"),
+    ("a.wma", bytes.fromhex("3026b2758e66cf11a6d900aa0062ce6c") + b"\x00" * 8, "wma"),
+    ("a.wmv", bytes.fromhex("3026b2758e66cf11a6d900aa0062ce6c") + b"\x00" * 8, "wmv"),
+    ("a.mpg", b"\x00\x00\x01\xba" + b"\x00" * 12, "mpeg"),
+    ("a.aac", b"\xff\xf1\x50\x40" + b"\x00" * 12, "aac"),
+    ("a.opus", b"OggS" + b"\x00" * 24 + b"OpusHead" + b"\x00" * 4, "opus"),
+    ("a.ogg", b"OggS" + b"\x00" * 24 + b"OpusHead" + b"\x00" * 4, "ogg"),  # Opus em .ogg vale
+])
+def test_new_media_formats_are_detected_by_content(tmp_path, nome, conteudo, esperado):
+    p = tmp_path / nome
+    p.write_bytes(conteudo)
+    assert detect(p).fmt == esperado
+
+
 @pytest.mark.parametrize(
     "text,expected",
     [

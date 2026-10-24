@@ -15,7 +15,9 @@ FAMILIA = {
     "txt": "Texto e dados", "md": "Texto e dados", "csv": "Texto e dados",
     "json": "Texto e dados", "xlsx": "Texto e dados",
     "mp3": "Áudio", "wav": "Áudio", "ogg": "Áudio", "flac": "Áudio", "m4a": "Áudio",
+    "aac": "Áudio", "opus": "Áudio", "wma": "Áudio", "aiff": "Áudio",
     "mp4": "Vídeo", "mkv": "Vídeo", "webm": "Vídeo", "avi": "Vídeo", "mov": "Vídeo",
+    "wmv": "Vídeo", "mpeg": "Vídeo", "m4v": "Vídeo",
 }
 
 ROTULO = {"docx": "Word", "xlsx": "Excel", "md": "MD"}

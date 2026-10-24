@@ -18,17 +18,21 @@ ALIASES = {
     "tif": "tiff",
     "markdown": "md",
     "htm": "html",
+    "aif": "aiff",
+    "mpg": "mpeg",
 }
 
 TEXT_FORMATS = {"csv", "json", "txt", "md"}
 
-_WEAK_SIGNATURES = {"bmp", "mp3"}
+_WEAK_SIGNATURES = {"bmp", "mp3", "aac"}
 
 # Formatos que compartilham o mesmo contêiner: a assinatura não distingue com
 # segurança, então aceitamos a extensão se ela estiver no mesmo grupo.
 _FAMILIES = [
-    {"mp4", "m4a", "mov"},
+    {"mp4", "m4a", "mov", "m4v"},
     {"mkv", "webm"},
+    {"ogg", "opus"},
+    {"wma", "wmv"},  # ASF: o mesmo cabeçalho para áudio e vídeo
 ]
 
 
@@ -77,13 +81,23 @@ def sniff(path: Path) -> str | None:
     if head.startswith(b"fLaC"):
         return "flac"
     if head.startswith(b"OggS"):
-        return "ogg"
+        return "opus" if head[28:36] == b"OpusHead" else "ogg"
     if head.startswith(b"ID3") or head[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"):
         return "mp3"
+    if head[0:1] == b"\xff" and len(head) > 1 and head[1] & 0xF6 == 0xF0:
+        return "aac"  # ADTS: sincronismo 0xFFF, camada 00
+    if head[:4] == b"FORM" and head[8:12] in (b"AIFF", b"AIFC"):
+        return "aiff"
+    if head[:16] == bytes.fromhex("3026b2758e66cf11a6d900aa0062ce6c"):
+        return "wmv"  # ASF (WMA/WMV); a extensão decide entre os dois
+    if head[:4] == b"\x00\x00\x01\xba":
+        return "mpeg"  # MPEG program stream
     if head[4:8] == b"ftyp":
         brand = head[8:12]
         if brand.startswith(b"M4A"):
             return "m4a"
+        if brand == b"M4V ":
+            return "m4v"
         if brand == b"qt  ":
             return "mov"
         return "mp4"

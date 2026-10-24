@@ -2,7 +2,7 @@
 
 <!-- Arquivo GERADO por scripts/gerar_formatos.py. Não edite à mão. -->
 
-Total: **127 conversões**, todas cobertas por tests/test_matrix.py.
+Total: **295 conversões**, todas cobertas por tests/test_matrix.py.
 
 ## Dados
 
@@ -51,11 +51,23 @@ Observação: Uma imagem por página (150 DPI); várias páginas vão para uma p
 
 | Origem | Destinos |
 |---|---|
-| AVI | MKV, MOV, MP4, WEBM |
-| MKV | AVI, MOV, MP4, WEBM |
-| MOV | AVI, MKV, MP4, WEBM |
-| MP4 | AVI, MKV, MOV, WEBM |
-| WEBM | AVI, MKV, MOV, MP4 |
+| AAC | MP4 |
+| AIFF | MP4 |
+| AVI | GIF, JPG, M4V, MKV, MOV, MP4, MPEG, PNG, WEBM, WMV |
+| FLAC | MP4 |
+| M4A | MP4 |
+| M4V | AVI, GIF, JPG, MKV, MOV, MP4, MPEG, PNG, WEBM, WMV |
+| MKV | AVI, GIF, JPG, M4V, MOV, MP4, MPEG, PNG, WEBM, WMV |
+| MOV | AVI, GIF, JPG, M4V, MKV, MP4, MPEG, PNG, WEBM, WMV |
+| MP3 | MP4 |
+| MP4 | AVI, GIF, JPG, M4V, MKV, MOV, MPEG, PNG, WEBM, WMV |
+| MPEG | AVI, GIF, JPG, M4V, MKV, MOV, MP4, PNG, WEBM, WMV |
+| OGG | MP4 |
+| OPUS | MP4 |
+| WAV | MP4 |
+| WEBM | AVI, GIF, JPG, M4V, MKV, MOV, MP4, MPEG, PNG, WMV |
+| WMA | MP4 |
+| WMV | AVI, GIF, JPG, M4V, MKV, MOV, MP4, MPEG, PNG, WEBM |
 
 Observação: Requer ffmpeg instalado (veja README, seção ffmpeg).
 
@@ -72,15 +84,22 @@ Observação: Requer o Microsoft Word instalado neste computador.
 
 | Origem | Destinos |
 |---|---|
-| AVI | FLAC, M4A, MP3, OGG, WAV |
-| FLAC | M4A, MP3, OGG, WAV |
-| M4A | FLAC, MP3, OGG, WAV |
-| MKV | FLAC, M4A, MP3, OGG, WAV |
-| MOV | FLAC, M4A, MP3, OGG, WAV |
-| MP3 | FLAC, M4A, OGG, WAV |
-| MP4 | FLAC, M4A, MP3, OGG, WAV |
-| OGG | FLAC, M4A, MP3, WAV |
-| WAV | FLAC, M4A, MP3, OGG |
-| WEBM | FLAC, M4A, MP3, OGG, WAV |
+| AAC | AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| AIFF | AAC, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| AVI | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| FLAC | AAC, AIFF, M4A, MP3, OGG, OPUS, WAV, WMA |
+| M4A | AAC, AIFF, FLAC, MP3, OGG, OPUS, WAV, WMA |
+| M4V | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| MKV | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| MOV | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| MP3 | AAC, AIFF, FLAC, M4A, OGG, OPUS, WAV, WMA |
+| MP4 | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| MPEG | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| OGG | AAC, AIFF, FLAC, M4A, MP3, OPUS, WAV, WMA |
+| OPUS | AAC, AIFF, FLAC, M4A, MP3, OGG, WAV, WMA |
+| WAV | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WMA |
+| WEBM | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
+| WMA | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV |
+| WMV | AAC, AIFF, FLAC, M4A, MP3, OGG, OPUS, WAV, WMA |
 
 Observação: Requer ffmpeg instalado (veja README, seção ffmpeg).
