@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gc
+import sys
 import time
 
 import pytest
@@ -64,9 +65,13 @@ def test_situation_and_reason_texts(sample, tmp_path):
 
     assert situacao_arquivo("pdf") == "pronto"
     assert situacao_arquivo("zip") == "sem conversão para ZIP"
-    # DOCX converte para TXT/MD/HTML mesmo sem Word; o .doc antigo precisa do Word.
+    # DOCX converte para TXT/MD/HTML mesmo sem Word; o .doc antigo precisa do Word
+    # (Windows) ou do textutil (já vem em todo Mac).
     assert situacao_arquivo("docx") == "pronto"
-    assert situacao_arquivo("doc").startswith("indisponível: requer o microsoft word")
+    if sys.platform == "darwin":
+        assert situacao_arquivo("doc") == "pronto"
+    else:
+        assert situacao_arquivo("doc").startswith("indisponível: requer o microsoft word")
     assert motivo_sem_destino(["pdf"]) is None
     assert "não têm um formato de destino em comum" in motivo_sem_destino(["pdf", "xlsx"])
     assert "ZIP" in motivo_sem_destino(["zip"])
