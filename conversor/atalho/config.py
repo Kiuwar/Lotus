@@ -8,13 +8,22 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from conversor.logs import get_logger
 
 MODIFICADORES = ("ctrl", "shift", "alt", "win")
-NOME_MOD = {"ctrl": "Ctrl", "shift": "Shift", "alt": "Alt", "win": "Win"}
+MAC = sys.platform == "darwin"
+# No Mac: "alt" é a tecla ⌥ Option e "win" é a ⌘ Command.
+NOME_MOD = ({"ctrl": "⌃ Control", "shift": "⇧ Shift", "alt": "⌥ Option", "win": "⌘ Cmd"} if MAC
+            else {"ctrl": "Ctrl", "shift": "Shift", "alt": "Alt", "win": "Win"})
+_LISTA_MODS = ", ".join(NOME_MOD[m] for m in ("ctrl", "shift", "alt", "win"))
+
+# Padrão: Ctrl+Shift no Windows; Option+Shift no Mac (Cmd+clique já é
+# "selecionar vários" no Finder, assim como Ctrl+clique no Explorer).
+MODS_PADRAO = frozenset({"alt", "shift"}) if MAC else frozenset({"ctrl", "shift"})
 
 BOTOES = ("esquerdo", "direito", "meio", "lateral1", "lateral2")
 NOME_BOTAO = {
@@ -43,7 +52,7 @@ def vk_da_tecla(tecla: str) -> int:
 
 @dataclass(frozen=True)
 class Gatilho:
-    modificadores: frozenset = field(default_factory=lambda: frozenset({"ctrl", "shift"}))
+    modificadores: frozenset = field(default_factory=lambda: MODS_PADRAO)
     tipo: str = "mouse"  # "mouse" ou "tecla"
     botao: str = "esquerdo"
     tecla: str = "C"
@@ -63,7 +72,7 @@ class Gatilho:
 
     @classmethod
     def de_dict(cls, d: dict) -> "Gatilho":
-        mods = d.get("modificadores", ["ctrl", "shift"])
+        mods = d.get("modificadores", sorted(MODS_PADRAO))
         if not isinstance(mods, list):
             raise ValueError("modificadores deve ser uma lista")
         return cls(
@@ -93,14 +102,18 @@ def validar(g: Gatilho) -> tuple[list[str], list[str]]:
         elif not g.modificadores and g.botao in ("esquerdo", "direito"):
             erros.append(
                 "Clique esquerdo ou direito sem tecla modificadora bloquearia o uso normal "
-                "do mouse. Marque ao menos uma tecla (Ctrl, Shift, Alt ou Win)."
+                f"do mouse. Marque ao menos uma tecla ({_LISTA_MODS})."
             )
-        if g.botao == "esquerdo" and g.modificadores in ({"ctrl"}, {"shift"}):
+        selecao_multipla = ({"win"}, {"shift"}) if MAC else ({"ctrl"}, {"shift"})
+        if g.botao == "esquerdo" and g.modificadores in selecao_multipla:
             avisos.append(
-                "No Explorer, Ctrl+clique e Shift+clique já servem para selecionar vários "
-                "arquivos. Com este atalho, essa função deixa de funcionar."
+                f"No {'Finder' if MAC else 'Explorer'}, "
+                f"{'⌘ Cmd' if MAC else 'Ctrl'}+clique e Shift+clique já servem para selecionar "
+                "vários arquivos. Com este atalho, essa função deixa de funcionar."
             )
-        if g.botao == "direito" and not (g.modificadores - {"shift"}):
+        if MAC and g.botao == "esquerdo" and g.modificadores == {"ctrl"}:
+            avisos.append("No Mac, ⌃ Control+clique abre o menu de contexto; ele deixará de abrir.")
+        if not MAC and g.botao == "direito" and not (g.modificadores - {"shift"}):
             avisos.append("Shift+clique direito abre o menu estendido do Windows; ele deixará de abrir.")
     else:
         try:
@@ -111,12 +124,14 @@ def validar(g: Gatilho) -> tuple[list[str], list[str]]:
             if not g.modificadores and not g.tecla.startswith("F"):
                 erros.append(
                     "Letra ou número sem tecla modificadora impediria digitar essa tecla. "
-                    "Marque ao menos uma tecla (Ctrl, Shift, Alt ou Win)."
+                    f"Marque ao menos uma tecla ({_LISTA_MODS})."
                 )
-            if g.modificadores == {"ctrl"} and g.tecla in {"A", "C", "V", "X", "Z", "Y", "S"}:
-                avisos.append(f"Ctrl+{g.tecla} é um atalho comum do Windows e deixará de funcionar.")
+            comum = {"win"} if MAC else {"ctrl"}
+            if g.modificadores == comum and g.tecla in {"A", "C", "V", "X", "Z", "Y", "S"}:
+                avisos.append(f"{NOME_MOD[next(iter(comum))]}+{g.tecla} é um atalho comum do sistema "
+                              "e deixará de funcionar.")
 
-    if "win" in g.modificadores:
+    if "win" in g.modificadores and not MAC:
         avisos.append("Atalhos com Win podem estar reservados pelo Windows e não funcionar.")
     return erros, avisos
 
@@ -125,7 +140,11 @@ def validar(g: Gatilho) -> tuple[list[str], list[str]]:
 
 def pasta_config() -> Path:
     base = os.environ.get("APPDATA")
-    return Path(base) / "Lotus" if base else Path.home() / ".lotus"
+    if base:
+        return Path(base) / "Lotus"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Lotus"
+    return Path.home() / ".lotus"
 
 
 def arquivo_config() -> Path:

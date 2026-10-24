@@ -15,8 +15,8 @@ from conversor.ui import tema  # noqa: E402
 def root():
     try:
         r = tk.Tk()
-    except tk.TclError:
-        pytest.skip("sem display disponível")
+    except tk.TclError as e:
+        pytest.skip(f"sem display disponível ({e})")
     yield r
     try:
         r.destroy()
@@ -67,6 +67,12 @@ def _app(root, propria=True, escuro=False):
     m = Moldura(root, pal, "Lotus", propria=propria)
     root.geometry("860x680+0+0")
     app = App(m.conteudo, pal=pal, moldura=m)
+    import time
+
+    fim = time.time() + 5
+    while not m.pronta and time.time() < fim:  # no Windows: espera a janela reaparecer
+        root.update()
+        time.sleep(0.02)
     root.update()
     return m, app
 

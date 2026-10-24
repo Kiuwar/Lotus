@@ -1,6 +1,6 @@
 """Log de erros LOCAL, para diagnóstico. Nunca é enviado a lugar nenhum.
 
-Fica em %LOCALAPPDATA%\\Lotus\\lotus.log (no Linux/macOS: ~/.lotus/lotus.log),
+Fica em %LOCALAPPDATA%\\Lotus\\lotus.log (macOS: ~/Library/Logs/Lotus; Linux: ~/.lotus),
 limitado a 3 arquivos de 512 KB. Contém nomes/caminhos de arquivos: o usuário
 pode apagá-lo a qualquer momento.
 """
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -17,7 +18,11 @@ _logger: logging.Logger | None = None
 
 def log_dir() -> Path:
     base = os.environ.get("LOCALAPPDATA")
-    return Path(base) / "Lotus" if base else Path.home() / ".lotus"
+    if base:
+        return Path(base) / "Lotus"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Logs" / "Lotus"
+    return Path.home() / ".lotus"
 
 
 def log_file() -> Path:

@@ -23,8 +23,8 @@ def test_common_targets_is_intersection():
 def app():
     try:
         root = tk.Tk()
-    except tk.TclError:
-        pytest.skip("sem display disponível")
+    except tk.TclError as e:
+        pytest.skip(f"sem display disponível ({e})")
     root.withdraw()
     a = App(root)
     yield a

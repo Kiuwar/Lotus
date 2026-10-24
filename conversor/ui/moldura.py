@@ -87,6 +87,7 @@ class Moldura:
         self._arraste = None
         self._menu: tk.Menu | None = None
         self.hwnd: int | None = None
+        self.pronta = not self.propria or sys.platform != "win32"  # ajustes do Windows aplicados
         self.log = get_logger()
 
         root.title(titulo)
@@ -223,7 +224,7 @@ class Moldura:
             _user32.SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE, (estilo & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW)
             # O Windows só reavalia a barra de tarefas ao reexibir a janela.
             self.root.withdraw()
-            self.root.after(10, self.root.deiconify)
+            self.root.after(10, self._reexibir)
             try:
                 dwm = ctypes.WinDLL("dwmapi")
                 dwm.DwmSetWindowAttribute.argtypes = [w.HWND, w.DWORD, ctypes.c_void_p, w.DWORD]
@@ -236,6 +237,11 @@ class Moldura:
             self._aplicar_regiao()
         except Exception:
             self.log.exception("ajustes da moldura própria falharam")
+            self.pronta = True
+
+    def _reexibir(self) -> None:
+        self.root.deiconify()
+        self.pronta = True
 
     def _ao_redimensionar(self, e) -> None:
         if e.widget is self.root:

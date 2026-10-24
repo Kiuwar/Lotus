@@ -202,8 +202,8 @@ tk = pytest.importorskip("tkinter")
 def root():
     try:
         r = tk.Tk()
-    except tk.TclError:
-        pytest.skip("sem display disponível")
+    except tk.TclError as e:
+        pytest.skip(f"sem display disponível ({e})")
     r.withdraw()
     yield r
     try:

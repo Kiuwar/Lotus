@@ -42,7 +42,14 @@ jobs:
         if: runner.os == 'Windows'
         # Se falhar, os testes de áudio/vídeo são PULADOS (e aparecem como skipped no log).
         continue-on-error: true
-        run: choco install ffmpeg -y --no-progress
+        shell: pwsh
+        run: |
+          foreach ($i in 1..2) {
+            choco install ffmpeg -y --no-progress
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            Write-Host "choco falhou (tentativa $i)"; Start-Sleep 15
+          }
+          exit 1
 
       - name: Testes (Linux, com display virtual para a interface)
         if: runner.os == 'Linux'
