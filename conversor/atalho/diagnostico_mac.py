@@ -55,6 +55,12 @@ def avaliar(f: dict) -> list[Item]:
         itens.append(Item(ERRO, "O painel por atalho está DESLIGADO (é assim logo após instalar).",
                           LIGAR_PAINEL))
 
+    if f.get("gatilho_tipo") == "tecla":
+        itens.append(Item(ERRO, "O atalho está configurado como TECLA, mas no Mac o painel só "
+                          "funciona com clique.",
+                          "Ferramentas → Atalho do painel flutuante… → escolha \"+ botão do "
+                          "mouse\" e Salvar."))
+
     # 2. O agente (processo em segundo plano) está rodando?
     if f.get("agente_rodando"):
         itens.append(Item(OK, "Agente do Lotus rodando em segundo plano."))
@@ -209,6 +215,7 @@ def coletar() -> dict:
         "versao": __version__,
         "atalho_ativo": cfg.atalho_ativo,
         "gatilho": cfg.gatilho.descrever(),
+        "gatilho_tipo": cfg.gatilho.tipo,
         "agente_rodando": mac.agente_rodando(),
         "inicio_registrado": controle.inicio_registrado(),
         "inicio_esperado": controle.comando_agente(),

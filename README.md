@@ -72,15 +72,18 @@ configuração (`%APPDATA%\Lotus`) e os arquivos convertidos são mantidos.
 2. Abra o `.dmg` e arraste o **Lotus** para **Aplicativos**.
 3. Na 1ª abertura o macOS bloqueia apps sem assinatura paga da Apple:
    **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**.
-4. **Ligue o painel por atalho** (ele vem desligado): no Lotus,
-   *Ferramentas → Atalho do painel flutuante…* → marque **Ligar o painel
-   flutuante** → **Salvar**.
-5. Dê a permissão de **Acessibilidade**: *Ajustes do Sistema → Privacidade
-   e Segurança → Acessibilidade → ative o Lotus*. Depois **desligue e ligue
-   o painel** de novo (o Lotus só tenta usar a permissão ao ligar).
-   Na primeira vez que o painel ler os arquivos selecionados, o Mac pede
-   para o Lotus controlar o **Finder**: clique em **Permitir**.
-6. Clique direito: *Ferramentas → Instalar Ação Rápida do Finder*; depois,
+4. **Ative o painel por atalho (⌥ Option+⇧ Shift+clique)**: na primeira
+   vez que você abre o Lotus, a janela **Ativar o painel no Mac** mostra 3
+   passos, cada um com um botão, e marca ✓ sozinha conforme você avança:
+   1. **Ligar agora** (o painel vem desligado);
+   2. **Abrir Acessibilidade** → ative o **Lotus** (o Lotus tenta de novo
+      sozinho a cada 2 segundos; não é preciso desligar e ligar o painel);
+   3. **Testar o Finder** → quando o Mac perguntar se o Lotus pode controlar
+      o "Finder", clique em **Permitir** (o Lotus só lê quais arquivos estão
+      selecionados).
+   Para reabrir: *Ferramentas → Ativar o painel no Mac…* ou clique na linha
+   "Painel por atalho: …" no pé da janela principal.
+5. Clique direito: *Ferramentas → Instalar Ação Rápida do Finder*; depois,
    no Finder, clique direito num arquivo → **Ações Rápidas → Converter com
    Lotus**.
 
@@ -90,12 +93,14 @@ falta (painel desligado, Acessibilidade, Automação do Finder, app rodando de
 dentro do .dmg…) e como resolver. Não altera nada e não usa a internet. Os
 casos mais comuns:
 
-- **Painel desligado** (passo 4).
-- **Permissão dada depois de ligar o painel**: desligue e ligue o painel.
+- **Painel desligado**: passo 4.1.
+- **Atalho configurado como tecla**: no Mac o painel só funciona com
+  clique (*Ferramentas → Atalho do painel flutuante…*).
 - **Atualizou o Lotus e a permissão "não pega"**: o Lotus não tem assinatura
   paga da Apple, e cada versão tem uma assinatura nova. Em *Acessibilidade*,
   selecione Lotus, clique em **−**, depois em **+** e escolha
-  `/Applications/Lotus.app`.
+  `/Applications/Lotus.app`. (A janela de ativação sugere isso sozinha se a
+  permissão não chegar.)
 - **Lotus aberto de dentro do .dmg ou da pasta Downloads**: mova para
   *Aplicativos* e abra de lá.
 

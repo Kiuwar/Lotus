@@ -31,6 +31,11 @@ from conversor.logs import get_logger, registrar_erros_tcl
 from conversor.ui.icone import aplicar_icone
 
 FINDER = "com.apple.finder"
+MSG_SEM_ACESSIBILIDADE = ("Sem permissão de Acessibilidade. Como resolver: Ajustes do Sistema → "
+                          "Privacidade e Segurança → Acessibilidade → ative o Lotus.")
+INTERVALO_TENTATIVA = 2.0     # s entre novas tentativas de instalar o gancho
+TENTATIVAS_COM_PERMISSAO = 3  # com a permissão dada e o gancho ainda falhando: reinicia o agente
+JANELA_REINICIO = 120.0       # não reinicia de novo se já reiniciou há menos que isto (s)
 MARCA = 0x4C4F5455  # "LOTU": identifica cliques simulados pelo próprio Lotus
 ROTULO_LAUNCHD = "com.kiuwar.lotus.agente"
 
@@ -212,14 +217,32 @@ def arquivo_launchd() -> Path:
 
 # ---------- gancho Quartz ----------
 
+def deve_reiniciar(tentativas_com_permissao: int, ultimo_reinicio: float | None, agora: float) -> bool:
+    """Permissão dada, mas o gancho segue falhando: o macOS pode só aceitar a
+    permissão num processo novo. Reinicia uma vez; se já reiniciou há pouco,
+    não insiste (evita laço) e a janela guiada sugere remover/adicionar."""
+    if tentativas_com_permissao < TENTATIVAS_COM_PERMISSAO:
+        return False
+    return ultimo_reinicio is None or agora - ultimo_reinicio > JANELA_REINICIO
+
+
+def ultimo_reinicio() -> float | None:
+    try:
+        return _arq("reinicio").stat().st_mtime
+    except OSError:
+        return None
+
+
 class GanchoMac(threading.Thread):
-    def __init__(self, gatilho: config.Gatilho, trabalho: queue.Queue, cliques: queue.Queue | None = None):
+    def __init__(self, gatilho: config.Gatilho, trabalho: queue.Queue, cliques: queue.Queue | None = None,
+                 avisos: queue.Queue | None = None):
         super().__init__(name="lotus-gancho-mac", daemon=True)
         import Quartz
 
         self.Q = Quartz
         self.detector = gesto.Detector(gatilho)
-        self.trabalho, self.cliques = trabalho, cliques
+        self.trabalho, self.cliques, self.avisos = trabalho, cliques, avisos
+        self._parar = threading.Event()
         self.painel_aberto = threading.Event()
         self.pronto = threading.Event()
         self.erro: str | None = None
@@ -276,19 +299,45 @@ class GanchoMac(threading.Thread):
             self.log.exception("erro no gancho do Mac")
         return evento
 
-    def run(self) -> None:
+    def _criar_tap(self):
         Q = self.Q
         mascara = 0
         for t in self.tipos:
             mascara |= Q.CGEventMaskBit(t)
-        self._tap = Q.CGEventTapCreate(Q.kCGSessionEventTap, Q.kCGHeadInsertEventTap,
-                                       Q.kCGEventTapOptionDefault, mascara, self._callback, None)
-        if self._tap is None:
-            self.erro = ("Sem permissão de Acessibilidade. Como resolver: Ajustes do Sistema → "
-                         "Privacidade e Segurança → Acessibilidade → ative o Lotus.")
-            self.log.error(self.erro)
+        return Q.CGEventTapCreate(Q.kCGSessionEventTap, Q.kCGHeadInsertEventTap,
+                                  Q.kCGEventTapOptionDefault, mascara, self._callback, None)
+
+    def _avisar(self, *msg) -> None:
+        if self.avisos is not None:
+            self.avisos.put(msg)
+
+    def run(self) -> None:
+        Q = self.Q
+        self._tap = self._criar_tap()
+        tentou_de_novo = False
+        com_permissao = 0
+        while self._tap is None:
+            if self.erro is None:
+                self.erro = MSG_SEM_ACESSIBILIDADE
+                self.log.error(self.erro)
             self.pronto.set()
-            return
+            # Espera a permissão chegar e tenta de novo (antes, o agente desistia
+            # e só um desligar/ligar resolvia).
+            if self._parar.wait(INTERVALO_TENTATIVA):
+                return
+            if ax_confiavel():
+                tentou_de_novo = True
+                self._tap = self._criar_tap()
+                if self._tap is None:
+                    com_permissao += 1
+                    if deve_reiniciar(com_permissao, ultimo_reinicio(), time.time()):
+                        self.log.warning("permissão dada, gancho ainda falha: reiniciando o agente")
+                        self._avisar("reiniciar")
+                        return
+        self.erro = None
+        if tentou_de_novo:
+            self.log.info("gancho instalado depois que a permissão de Acessibilidade chegou")
+            self._avisar("gancho_ok")
         fonte = Q.CFMachPortCreateRunLoopSource(None, self._tap, 0)
         self._loop = Q.CFRunLoopGetCurrent()
         Q.CFRunLoopAddSource(self._loop, fonte, Q.kCFRunLoopCommonModes)
@@ -300,6 +349,7 @@ class GanchoMac(threading.Thread):
         self.detector = gesto.Detector(g)
 
     def parar(self) -> None:
+        self._parar.set()
         if self._loop is not None:
             self.Q.CFRunLoopStop(self._loop)
 
@@ -352,7 +402,7 @@ def executar() -> int:
     trabalho: queue.Queue = queue.Queue()
     saida: queue.Queue = queue.Queue()
     cliques: queue.Queue = queue.Queue()
-    gancho = GanchoMac(cfg.gatilho, trabalho, cliques)
+    gancho = GanchoMac(cfg.gatilho, trabalho, cliques, avisos=saida)
     gancho.start()
     gancho.pronto.wait(5)
     gravar_estado_agente(gancho.erro is None and gancho.pronto.is_set(),
@@ -370,9 +420,26 @@ def executar() -> int:
         NSApplication.sharedApplication().setActivationPolicy_(NSApplicationActivationPolicyAccessory)
     except Exception:
         log.exception("não foi possível esconder o ícone do Dock")
+    estado = {"painel": None, "guia": None, "reiniciar": False}
+
+    def mostrar_guia() -> None:
+        # Antes era um aviso que podia ficar escondido atrás das janelas (o agente
+        # não tem ícone no Dock). Agora: a janela guiada, trazida para a frente.
+        from conversor.atalho import janela_ativacao
+
+        g = estado["guia"]
+        if g is not None and not g.fechado:
+            return
+        try:
+            from AppKit import NSApplication
+
+            NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+        except Exception:
+            log.exception("não foi possível trazer o Lotus para a frente")
+        estado["guia"] = janela_ativacao.abrir(root)
+
     if gancho.erro:
-        messagebox.showwarning("Lotus", gancho.erro)
-    estado = {"painel": None}
+        mostrar_guia()
 
     def tick() -> None:
         if parada_pedida():
@@ -383,6 +450,13 @@ def executar() -> int:
             if msg[0] == "aviso":
                 messagebox.showwarning("Lotus", msg[1])
                 continue
+            if msg[0] == "gancho_ok":
+                gravar_estado_agente(True, None, ax_confiavel())
+                continue
+            if msg[0] == "reiniciar":
+                estado["reiniciar"] = True
+                root.destroy()
+                return
             _, arquivos, x, y = msg
             if estado["painel"] is not None:
                 estado["painel"].destroy()
@@ -405,4 +479,14 @@ def executar() -> int:
         gancho.parar()
         trabalho.put(None)
         trava.close()
+    if estado["reiniciar"]:
+        reiniciar_agente()
     return 0
+
+
+def reiniciar_agente() -> None:
+    """Um agente novo (a trava deste já foi solta). Marca o horário para não entrar em laço."""
+    from conversor import shell
+
+    _arq("reinicio").touch()
+    subprocess.Popen(shell.launcher_command() + ["--agente"], start_new_session=True, close_fds=True)

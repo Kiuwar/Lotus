@@ -8,6 +8,8 @@ from tkinter import messagebox, ttk
 
 from conversor.atalho import config
 
+MAC = sys.platform == "darwin"
+
 
 class JanelaAtalho(tk.Toplevel):
     def __init__(self, master: tk.Misc):
@@ -21,8 +23,8 @@ class JanelaAtalho(tk.Toplevel):
         f.pack(fill="both", expand=True)
         ttk.Label(
             f,
-            text="Numa janela do Explorer, use o atalho sobre um arquivo para abrir\n"
-                 "um painel com os formatos de conversão.",
+            text=f"{'No Finder ou na Mesa' if MAC else 'Numa janela do Explorer'}, use o atalho "
+                 "sobre um arquivo para abrir\num painel com os formatos de conversão.",
         ).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 10))
 
         ttk.Label(f, text="Teclas:").grid(row=1, column=0, sticky="w")
@@ -33,7 +35,7 @@ class JanelaAtalho(tk.Toplevel):
             ttk.Checkbutton(mods_frame, text=config.NOME_MOD[m], variable=self.mods[m],
                             command=self.atualizar).pack(side="left", padx=4)
 
-        self.tipo = tk.StringVar(value=g.tipo)
+        self.tipo = tk.StringVar(value="mouse" if MAC else g.tipo)
         ttk.Radiobutton(f, text="+ botão do mouse:", value="mouse", variable=self.tipo,
                         command=self.atualizar).grid(row=2, column=0, sticky="w", pady=(8, 0))
         self.botao = tk.StringVar(value=config.NOME_BOTAO[g.botao])
@@ -42,18 +44,22 @@ class JanelaAtalho(tk.Toplevel):
         self.botao_box.grid(row=2, column=1, columnspan=3, sticky="w", pady=(8, 0))
         self.botao_box.bind("<<ComboboxSelected>>", lambda _e: self.atualizar())
 
+        # No Mac o agente só escuta cliques (Quartz Event Tap de mouse): tecla não funcionaria.
         ttk.Radiobutton(f, text="+ tecla:", value="tecla", variable=self.tipo,
-                        command=self.atualizar).grid(row=3, column=0, sticky="w", pady=(4, 0))
+                        command=self.atualizar, state="disabled" if MAC else "normal").grid(
+            row=3, column=0, sticky="w", pady=(4, 0))
         self.tecla = tk.StringVar(value=g.tecla)
         self.tecla_box = ttk.Combobox(f, textvariable=self.tecla, state="readonly", width=6,
                                       values=config.TECLAS)
         self.tecla_box.grid(row=3, column=1, sticky="w", pady=(4, 0))
         self.tecla_box.bind("<<ComboboxSelected>>", lambda _e: self.atualizar())
-        ttk.Label(f, text="(atua nos arquivos já selecionados)", foreground="#666").grid(
+        ttk.Label(f, text="(no Mac, só com clique)" if MAC else "(atua nos arquivos já selecionados)",
+                  foreground="#666").grid(
             row=3, column=2, columnspan=2, sticky="w", pady=(4, 0))
 
         self.ativo = tk.BooleanVar(value=cfg.atalho_ativo)
-        ttk.Checkbutton(f, text="Ligar o painel flutuante (e iniciar com o Windows)",
+        ttk.Checkbutton(f, text="Ligar o painel flutuante (e iniciar com o "
+                                f"{'Mac' if MAC else 'Windows'})",
                         variable=self.ativo).grid(row=4, column=0, columnspan=4, sticky="w", pady=(10, 0))
 
         self.resumo = ttk.Label(f, text="", font=("Segoe UI", 10, "bold"))

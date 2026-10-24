@@ -158,6 +158,8 @@ def test_pyobjc_names_exist():
     assert not faltando, faltando
     for n in ("NSRunningApplication", "NSApplication", "NSApplicationActivationPolicyAccessory"):
         assert hasattr(AppKit, n), n
+    # Usado para trazer a janela de ativação para a frente (o agente não tem Dock).
+    assert hasattr(AppKit.NSApplication.sharedApplication(), "activateIgnoringOtherApps_")
 
 
 @so_mac

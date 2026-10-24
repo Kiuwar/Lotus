@@ -157,6 +157,8 @@ class Config:
     atalho_ativo: bool = False
     # Ícone ao lado do relógio (só Windows). Ligado por padrão.
     bandeja: bool = True
+    # Mac: a janela "Ativar o painel" já foi mostrada na 1ª abertura.
+    guia_mac_visto: bool = False
 
 
 def carregar(caminho: Path | None = None) -> Config:
@@ -170,7 +172,8 @@ def carregar(caminho: Path | None = None) -> Config:
         if erros:
             raise ValueError("; ".join(erros))
         return Config(gatilho=g, atalho_ativo=bool(dados.get("atalho_ativo", False)),
-                      bandeja=bool(dados.get("bandeja", True)))
+                      bandeja=bool(dados.get("bandeja", True)),
+                      guia_mac_visto=bool(dados.get("guia_mac_visto", False)))
     except Exception as e:
         # Reparo: guarda o arquivo ruim e segue com o padrão.
         reserva = caminho.with_suffix(".json.corrompido")
@@ -192,7 +195,7 @@ def salvar(cfg: Config, caminho: Path | None = None) -> None:
     tmp.write_text(
         json.dumps(
             {"versao": 1, "atalho": cfg.gatilho.para_dict(), "atalho_ativo": cfg.atalho_ativo,
-             "bandeja": cfg.bandeja},
+             "bandeja": cfg.bandeja, "guia_mac_visto": cfg.guia_mac_visto},
             ensure_ascii=False,
             indent=2,
         ),

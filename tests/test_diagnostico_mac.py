@@ -118,6 +118,7 @@ def test_signature_kind_is_read_from_codesign():
     assert dm._pacote_app("/Applications/Lotus.app/Contents/MacOS/Lotus") == "/Applications/Lotus.app"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="trava fcntl: só em sistemas Unix")
 def test_agent_report_is_only_trusted_while_that_agent_runs():
     trava = mac.travar_instancia()
     assert trava is not None
@@ -153,3 +154,9 @@ def test_real_collection_produces_a_report(monkeypatch):
 @so_mac
 def test_real_automation_probe_returns_an_answer():
     assert isinstance(dm.testar_automacao(limite=10), str)
+
+
+def test_key_shortcut_on_mac_is_flagged():
+    """No Mac o agente só escuta cliques: um atalho de tecla nunca dispararia."""
+    erros = _erros(dict(TUDO_CERTO, gatilho_tipo="tecla"))
+    assert "TECLA" in erros[0].titulo and "botão do mouse" in erros[0].como_resolver

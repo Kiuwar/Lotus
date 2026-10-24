@@ -161,6 +161,16 @@ class App(ttk.Frame):
             style="Fundo.TLabel",
         ).grid(row=5, column=0, sticky="w", pady=(8, 0))
 
+        self.status_painel = None
+        self._status_pendente = None
+        if sys.platform == "darwin":
+            # Indicador do painel por atalho: clicar abre a ativação guiada.
+            self.status_painel = ttk.Label(self, text="", style="Fundo.TLabel", cursor="hand2")
+            self.status_painel.grid(row=6, column=0, sticky="w", pady=(4, 0))
+            self.status_painel.bind("<Button-1>", lambda _e: self.ativar_painel_mac())
+            self.bind("<Destroy>", self._parar_status, add="+")
+            self._atualizar_status()
+
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
@@ -182,6 +192,7 @@ class App(ttk.Frame):
         tools.add_separator()
         tools.add_command(label="Diagnosticar e reparar", command=self.diagnose)
         if sys.platform == "darwin":
+            tools.add_command(label="Ativar o painel no Mac…", command=self.ativar_painel_mac)
             tools.add_command(label="Diagnóstico do painel flutuante (Mac)…", command=self.diagnose_mac)
         tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
         self.tools_menu = tools
@@ -243,6 +254,41 @@ class App(ttk.Frame):
 
         for line in diagnostics.run():
             self._log(line)
+
+    # ---------- painel por atalho no Mac ----------
+
+    STATUS_MS = 3000
+    _CORES_STATUS = {"ok": "#1E8E3E", "aviso": "#B25E00", "desligado": "#6E6E73"}
+
+    def _atualizar_status(self) -> None:
+        self._status_pendente = None
+        from conversor.atalho import ativacao_mac
+
+        try:
+            texto, nivel = ativacao_mac.resumo(ativacao_mac.coletar_estado())
+        except Exception:  # noqa: BLE001 - o indicador nunca derruba a janela
+            get_logger().exception("status do painel")
+            texto, nivel = "Painel por atalho: estado desconhecido — clique para ver", "aviso"
+        self.status_painel.configure(text=texto, foreground=self._CORES_STATUS[nivel])
+        self._status_pendente = self.after(self.STATUS_MS, self._atualizar_status)
+
+    def _parar_status(self, evento) -> None:
+        if evento.widget is self and self._status_pendente is not None:
+            try:
+                self.after_cancel(self._status_pendente)
+            except tk.TclError:
+                pass
+            self._status_pendente = None
+
+    def ativar_painel_mac(self, ao_fechar=None):
+        from conversor.atalho import janela_ativacao
+
+        janela = getattr(self, "_guia", None)
+        if janela is not None and not janela.fechado:
+            janela.lift()
+            return janela
+        self._guia = janela_ativacao.abrir(self.winfo_toplevel(), ao_fechar=ao_fechar)
+        return self._guia
 
     def diagnose_mac(self) -> None:
         """Roda em thread (o osascript pode esperar a pergunta de permissão do
@@ -378,6 +424,22 @@ class App(ttk.Frame):
         self.log.configure(state="disabled")
 
 
+def _guia_na_primeira_vez(root: tk.Tk, app: App) -> None:
+    """Mac: na 1ª abertura, a janela "Ativar o painel" (o painel vem desligado)."""
+    from conversor.atalho import config
+
+    cfg = config.carregar()
+    if cfg.guia_mac_visto:
+        return
+
+    def visto() -> None:
+        c = config.carregar()
+        c.guia_mac_visto = True
+        config.salvar(c)
+
+    root.after(600, lambda: app.ativar_painel_mac(ao_fechar=visto))
+
+
 def _diagnostico_mac(fila: queue.Queue) -> None:
     from conversor.atalho import diagnostico_mac
 
@@ -440,6 +502,7 @@ def main(argv: list[str] | None = None) -> int:
     if sys.platform == "darwin":
         # No Mac, arquivos enviados pelo Finder chegam como evento do Tk.
         root.createcommand("::tk::mac::OpenDocument", lambda *caminhos: app.add_files(caminhos))
+        _guia_na_primeira_vez(root, app)
     root.mainloop()
     return 0
 
