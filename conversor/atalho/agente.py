@@ -32,12 +32,16 @@ MSG_RECARREGAR = winapi.WM_APP + 1
 
 
 class Gancho(threading.Thread):
-    def __init__(self, gatilho: config.Gatilho, trabalho: queue.Queue):
+    def __init__(self, gatilho: config.Gatilho, trabalho: queue.Queue, cliques: queue.Queue | None = None):
         super().__init__(name="lotus-gancho", daemon=True)
         self.detector = gesto.Detector(gatilho)
         self.gatilho = gatilho
         self.novo_gatilho: config.Gatilho | None = None
         self.trabalho = trabalho
+        # Cliques em qualquer lugar da tela, só enquanto há painel aberto
+        # (para fechá-lo ao clicar fora). Só posição; nada é gravado.
+        self.cliques = cliques
+        self.painel_aberto = threading.Event()
         self.tid = 0
         self.pronto = threading.Event()
         self.erro: str | None = None
@@ -59,6 +63,9 @@ class Gancho(threading.Thread):
                     classe = winapi.classe(winapi.janela_raiz_no_ponto(info.pt.x, info.pt.y))
                 mods = winapi.modificadores_pressionados() if apertou else set()
                 acao = self.detector.evento(botao, apertou, mods, injetado, classe)
+                if (apertou and not injetado and acao == gesto.PASSAR and self.cliques is not None
+                        and self.painel_aberto.is_set()):
+                    self.cliques.put((info.pt.x, info.pt.y))
                 if acao == gesto.DISPARAR:
                     hwnd = winapi.janela_raiz_no_ponto(info.pt.x, info.pt.y)
                     self.trabalho.put(("mouse", int(hwnd or 0), info.pt.x, info.pt.y, frozenset(mods)))
@@ -164,7 +171,8 @@ def executar() -> int:
     cfg = config.carregar()
     trabalho: queue.Queue = queue.Queue()
     saida: queue.Queue = queue.Queue()
-    gancho = Gancho(cfg.gatilho, trabalho)
+    cliques: queue.Queue = queue.Queue()
+    gancho = Gancho(cfg.gatilho, trabalho, cliques)
     gancho.start()
     gancho.pronto.wait(5)
     threading.Thread(target=trabalhador, args=(trabalho, saida), name="lotus-trabalho", daemon=True).start()
@@ -187,9 +195,17 @@ def executar() -> int:
                         estado["painel"].destroy()
                     except tk.TclError:
                         pass
+                _esvaziar(cliques)  # cliques anteriores ao painel não contam como "fora"
                 estado["painel"] = abrir_painel(root, arquivos, x, y)
         except queue.Empty:
             pass
+        painel = estado["painel"]
+        if painel is not None and not painel.fechado:
+            gancho.painel_aberto.set()
+            for cx, cy in _esvaziar(cliques):
+                painel.clique_global(cx, cy)
+        else:
+            gancho.painel_aberto.clear()
         estado["conta"] += 1
         if estado["conta"] % 40 == 0:  # a cada ~2 s: configuração mudou?
             m = _mtime(config.arquivo_config())
@@ -209,6 +225,15 @@ def executar() -> int:
         winapi.kernel32.CloseHandle(parar_evt)
         winapi.kernel32.CloseHandle(mutex)
     return 0
+
+
+def _esvaziar(q: queue.Queue) -> list:
+    itens = []
+    while True:
+        try:
+            itens.append(q.get_nowait())
+        except queue.Empty:
+            return itens
 
 
 def _mtime(p: Path) -> float:

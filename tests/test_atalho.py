@@ -200,34 +200,115 @@ def root():
     gc.collect()
 
 
-def test_panel_position_stays_on_screen():
-    from conversor.atalho.painel import posicao_na_tela
-
-    assert posicao_na_tela(100, 100, 300, 200, 1920, 1080) == (112, 112)
-    assert posicao_na_tela(1900, 1070, 300, 200, 1920, 1080) == (1588, 858)
-    assert posicao_na_tela(5, 5, 3000, 2000, 1920, 1080) == (0, 0)
-
-
-def test_floating_panel_shows_formats_and_converts(root, sample):
-    from conversor.atalho.painel import abrir_painel
-
-    src = sample("png")
-    top = abrir_painel(root, [str(src)], 50, 50)
-    root.update()
-    chooser = next(w for w in top.winfo_children()[0].winfo_children())
-    assert "pdf" in chooser.buttons and top.overrideredirect()
-    chooser.buttons["pdf"].invoke()
+def _esperar(root, cond, limite=20):
     import time
 
-    fim = time.time() + 20
-    while not (chooser.worker and not chooser.worker.is_alive() and chooser.outcomes):
+    fim = time.time() + limite
+    while not cond():
         root.update()
-        assert time.time() < fim
-        time.sleep(0.05)
-        if chooser.worker and not chooser.worker.is_alive():
-            root.update()
-    assert (src.parent / "amostra.pdf").is_file()
-    top.destroy()
+        assert time.time() < fim, "travou"
+        time.sleep(0.03)
+
+
+class _Ev:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+
+def test_floating_panel_groups_formats_and_converts(root, sample):
+    from conversor.atalho.painel import Painel
+    from conversor.ui import tema
+
+    src = sample("pdf")
+    p = Painel(root, [str(src)], 400, 300, tema.Aparencia(modo="claro"))
+    root.update()
+    fmts = {i.fmt: i for i in p.layout.itens}
+    assert {"png", "jpg", "txt"} <= set(fmts)
+    assert {f.grupo for f in p.layout.faixas} >= {"Imagem", "Texto e dados"}
+
+    it = fmts["txt"]
+    p._mover(_Ev(it.x, it.y))
+    assert p.hover == "txt"
+    p._clicar(_Ev(it.x, it.y))
+    assert p.estados == {"txt": "ocupado"}
+    _esperar(root, lambda: p.fechado)  # ✓ e fecha sozinho
+    assert "ação" in (src.parent / "amostra.txt").read_text(encoding="utf-8")
+
+
+def test_panel_closes_on_center_escape_and_outside_click(root, sample):
+    from conversor.atalho.painel import Painel
+    from conversor.ui import radial
+
+    src = str(sample("png"))
+    p = Painel(root, [src], 500, 400)
+    p._clicar(_Ev(p.layout.ancora_x, p.layout.ancora_y))
+    assert p.fechado
+
+    p = Painel(root, [src], 500, 400)
+    x0, y0 = p.pos
+    p.clique_global(x0 + round(p.layout.ancora_x), y0 + round(p.layout.ancora_y))  # dentro
+    assert not p.fechado
+    p.clique_global(x0 + p.layout.largura + 50, y0)  # fora
+    assert p.fechado
+
+    p = Painel(root, [src], 500, 400)
+    _esperar(root, lambda: root.focus_get() == p.top)  # o painel pega o foco sozinho
+    p.top.event_generate("<Escape>", when="tail")
+    root.update()
+    assert p.fechado
+    assert radial.CENTRO  # (constante usada acima)
+
+
+def test_panel_does_not_close_while_converting(root, sample, monkeypatch):
+    import threading
+
+    from conversor.atalho import painel as mod
+
+    liberar = threading.Event()
+    monkeypatch.setattr(mod, "_converter", lambda res, c, f: liberar.wait(5))
+    p = mod.Painel(root, [str(sample("png"))], 500, 400)
+    p.converter("jpg")
+    p.clique_global(-1000, -1000)
+    assert not p.fechado, "clique fora não pode cancelar uma conversão em andamento"
+    liberar.set()
+    _esperar(root, lambda: not p.ocupado)
+    p.destroy()
+
+
+def test_more_button_switches_to_full_card(root, tmp_path, monkeypatch):
+    from conversor.atalho import painel as mod
+    from conversor.ui import radial
+
+    monkeypatch.setattr(radial, "MAX_ITENS", 3)
+    criados = []
+    original = mod.Painel.__init__
+
+    def espiao(self, *a, **k):
+        criados.append(k.get("forma"))
+        original(self, *a, **k)
+
+    monkeypatch.setattr(mod.Painel, "__init__", espiao)
+    from .conftest import make_sample
+
+    p = mod.Painel(root, [str(make_sample("png", tmp_path))], 500, 400)
+    mais = next(i for i in p.layout.itens if i.fmt == radial.MAIS)
+    p._clicar(_Ev(mais.x, mais.y))
+    assert p.fechado and criados[-1] == "cartao"
+
+
+def test_panel_explains_when_no_conversion(root, tmp_path, monkeypatch):
+    import zipfile
+
+    from conversor.atalho import painel as mod
+
+    z = tmp_path / "a.zip"
+    with zipfile.ZipFile(z, "w") as f:
+        f.writestr("x.txt", "x")
+    mostrado = []
+    monkeypatch.setattr(mod.messagebox, "showinfo", lambda t, m, **k: mostrado.append(m))
+    p = mod.Painel(root, [str(z)], 300, 300)
+    _esperar(root, lambda: p.fechado)
+    assert mostrado and "ZIP" in mostrado[0]
 
 
 def test_config_window_blocks_dangerous_and_saves(root, monkeypatch):
