@@ -155,12 +155,13 @@ class App(ttk.Frame):
 
     def _build_menubar(self) -> None:
         tools = tk.Menu(self.master, tearoff=False)
-        on_windows = "normal" if sys.platform == "win32" else "disabled"
+        suportado = "normal" if sys.platform in ("win32", "darwin") else "disabled"
+        nome_menu = "Ação Rápida do Finder" if sys.platform == "darwin" else "menu do botão direito"
         tools.add_command(label="Aparência…", command=self.configure_appearance)
         tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey)
         tools.add_separator()
-        tools.add_command(label="Instalar menu do botão direito", command=self.install_menu, state=on_windows)
-        tools.add_command(label="Remover menu do botão direito", command=self.uninstall_menu, state=on_windows)
+        tools.add_command(label=f"Instalar {nome_menu}", command=self.install_menu, state=suportado)
+        tools.add_command(label=f"Remover {nome_menu}", command=self.uninstall_menu, state=suportado)
         tools.add_separator()
         tools.add_command(label="Diagnosticar e reparar", command=self.diagnose)
         tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
@@ -175,6 +176,12 @@ class App(ttk.Frame):
     # ---------- ferramentas ----------
 
     def install_menu(self) -> None:
+        if sys.platform == "darwin":
+            from conversor import acao_rapida
+
+            acao_rapida.instalar()
+            self._log("Ação Rápida instalada: no Finder, clique direito → Ações Rápidas → Converter com Lotus.")
+            return
         from conversor import shell
 
         try:
@@ -186,6 +193,12 @@ class App(ttk.Frame):
                   "(no Windows 11: \"Mostrar mais opções\").")
 
     def uninstall_menu(self) -> None:
+        if sys.platform == "darwin":
+            from conversor import acao_rapida
+
+            acao_rapida.desinstalar()
+            self._log("Ação Rápida removida.")
+            return
         from conversor import shell
 
         self._log(f"Menu removido de {shell.uninstall()} tipos de arquivo.")
@@ -369,6 +382,9 @@ def main(argv: list[str] | None = None) -> int:
     app = App(moldura.conteudo, pal=pal, moldura=moldura)
     if files:  # "Abrir com" / arrastar arquivos sobre o .exe
         app.add_files(files)
+    if sys.platform == "darwin":
+        # No Mac, arquivos enviados pelo Finder chegam como evento do Tk.
+        root.createcommand("::tk::mac::OpenDocument", lambda *caminhos: app.add_files(caminhos))
     root.mainloop()
     return 0
 

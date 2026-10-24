@@ -261,6 +261,32 @@ no Explorer; a aparência no seu Windows 10 (fontes Segoe UI, escala de
 tela); barra de tarefas/Alt+Tab com a moldura própria; minimizar e
 restaurar pela barra de tarefas.
 
+## 4.5. Versão para Mac (0.6.0)
+
+**O que existe:** app de conversão (todas as conversões, menos as do Word),
+Ação Rápida "Converter com Lotus" no clique direito do Finder, painel por
+atalho (padrão ⌥ Option+⇧ Shift+clique, no Finder e na Mesa) e `.dmg` para
+Apple Silicon e Intel.
+
+**Fontes usadas para não inventar:** estrutura do workflow do Automator
+copiada de workflows reais (repositório mb21/Pandoc-Mac-OS-X-Services;
+artigo de andrewbaker.ninja de 2026-09-08 para a parte do Finder); nomes do
+Quartz/AppKit são os da API C da Apple, conferidos um a um no CI do Mac;
+pyobjc 12.2.2 (MIT, universal2) conferido no PyPI; executores macOS
+(`macos-latest` = Apple Silicon, `macos-15-intel` = Intel) conferidos na
+documentação do GitHub.
+
+**Verificado no CI do Mac (quando ficar verde):** testes completos; nomes
+do pyobjc existem; o workflow gerado é executado pelo `automator` e recebe
+o arquivo; painel transparente criado; gancho sem permissão explica o que
+fazer; `.app` empacotado converte (inclusive PDF); Ação Rápida instalada
+pelo app aponta para o Lotus.app; `.dmg` monta e contém o app.
+
+**NÃO verificado (teste manual seu):** permissões reais de Acessibilidade e
+Automação; o gesto no Finder/Mesa; a Ação Rápida aparecendo no menu do
+Finder; Gatekeeper ("Abrir Mesmo Assim"); aparência do painel transparente
+(o CI tenta um print, mas o macOS pode bloquear a captura de tela).
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office

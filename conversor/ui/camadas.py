@@ -156,8 +156,39 @@ class SuperficieTk:
             self.canvas.itemconfigure(self._id, image=self._foto)
 
 
+class SuperficieMac:
+    """macOS: janela transparente do Tk (atributo -transparent + systemTransparent);
+    a imagem RGBA aparece com a transparência dos cantos e da sombra."""
+
+    def __init__(self, top: tk.Toplevel, x: int, y: int, largura: int, altura: int):
+        from PIL import ImageTk
+
+        self._ImageTk = ImageTk
+        top.attributes("-transparent", True)
+        top.configure(bg="systemTransparent")
+        top.geometry(f"{largura}x{altura}+{x}+{y}")
+        self.canvas = tk.Canvas(top, width=largura, height=altura, highlightthickness=0, bd=0,
+                                bg="systemTransparent")
+        self.canvas.pack()
+        self._foto = None
+        self._id = None
+
+    def mostrar(self, img: Image.Image) -> None:
+        self._foto = self._ImageTk.PhotoImage(img)
+        if self._id is None:
+            self._id = self.canvas.create_image(0, 0, anchor="nw", image=self._foto)
+        else:
+            self.canvas.itemconfigure(self._id, image=self._foto)
+
+
 def criar(top: tk.Toplevel, x: int, y: int, largura: int, altura: int, fundo: str):
-    """Janela em camadas no Windows; se algo falhar, a reserva (e registra no log)."""
+    """Janela transparente (Windows: em camadas; Mac: -transparent); se algo
+    falhar, a reserva com fundo opaco (e registra no log)."""
+    if sys.platform == "darwin":
+        try:
+            return SuperficieMac(top, x, y, largura, altura)
+        except Exception:
+            get_logger().exception("janela transparente do Mac indisponível; usando a reserva")
     if sys.platform == "win32":
         try:
             top.geometry(f"{largura}x{altura}+{x}+{y}")

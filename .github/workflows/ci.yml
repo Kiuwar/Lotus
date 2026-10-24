@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       publicar:
-        description: "Publicar o LotusSetup.exe numa Release do GitHub"
+        description: "Publicar instaladores (Windows e Mac) numa Release do GitHub"
         type: boolean
         default: false
 
@@ -74,8 +74,6 @@ jobs:
     needs: test
     runs-on: windows-latest
     timeout-minutes: 30
-    permissions:
-      contents: write  # só para criar a Release; o resto do job apenas lê
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -188,22 +186,132 @@ jobs:
           name: LotusSetup
           path: dist/LotusSetup.exe
 
-      - name: Publicar o instalador numa Release
-        # Só quando pedido (execução manual com "publicar") ou ao criar uma tag v*.
-        if: (github.event_name == 'workflow_dispatch' && inputs.publicar) || startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
+  test-mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest      # Apple Silicon (M1)
+            arq: AppleSilicon
+          - os: macos-15-intel    # Intel
+            arq: Intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - name: ffmpeg (Mac)
+        # Se falhar, os testes de áudio/vídeo aparecem como skipped no log.
+        continue-on-error: true
+        timeout-minutes: 15
+        run: brew install ffmpeg
+      - name: Testes (Mac)
+        run: python -m pytest -v -rs
+      - name: Captura de tela do app no Mac (diagnóstico)
+        continue-on-error: true
+        run: python scripts/capturar_mac.py previas-mac/lotus-mac-${{ matrix.arq }}.png
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: Previa-Mac-${{ matrix.arq }}
+          path: previas-mac/*.png
+
+  build-mac:
+    needs: test-mac
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arq: AppleSilicon
+          - os: macos-15-intel
+            arq: Intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+
+      - name: Empacotar Lotus.app
+        run: |
+          VER=$(python -c "import conversor; print(conversor.__version__)")
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --osx-bundle-identifier com.kiuwar.lotus --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --paths . packaging/app_cli.py
+          cp dist/conversor-cli dist/Lotus.app/Contents/MacOS/
+          python scripts/ajustar_app_mac.py dist/Lotus.app "$VER"
+          codesign --force --deep --sign - dist/Lotus.app
+          codesign --verify --deep --strict dist/Lotus.app
+
+      - name: Teste do app empacotado (conversões, inclusive PDF)
+        run: |
+          CLI=dist/Lotus.app/Contents/MacOS/conversor-cli
+          $CLI --listar > /dev/null
+          python -c "from PIL import Image; Image.new('RGBA',(32,32),(255,0,0,128)).save('t.png')"
+          printf 'Olá, ação\n' > t.txt
+          $CLI t.png --para pdf --saida saida
+          $CLI t.txt --para pdf --saida saida_txt
+          $CLI saida_txt/t.pdf --para png --saida saida_pdf
+          $CLI saida_txt/t.pdf --para txt --saida saida_pdf
+          test -f saida/t.pdf && test -f saida_pdf/t.png
+          grep -q "ação" saida_pdf/t.txt
+
+      - name: Teste da Ação Rápida instalada pelo app
+        run: |
+          APP=dist/Lotus.app/Contents/MacOS/Lotus
+          $APP --instalar-menu --silencioso
+          WF="$HOME/Library/Services/Converter com Lotus.workflow"
+          test -f "$WF/Contents/document.wflow"
+          plutil -lint "$WF/Contents/Info.plist" "$WF/Contents/document.wflow"
+          plutil -extract actions.0.action.ActionParameters.COMMAND_STRING raw "$WF/Contents/document.wflow" | tee cmd.txt
+          grep -q "Lotus.app" cmd.txt
+          $APP --remover-menu --silencioso
+          test ! -e "$WF"
+
+      - name: Gerar o .dmg (arrastar para Aplicativos)
+        run: |
+          mkdir -p dmg && cp -R dist/Lotus.app dmg/ && ln -s /Applications dmg/Aplicativos
+          hdiutil create -volname "Lotus" -srcfolder dmg -ov -format UDZO "dist/Lotus-Mac-${{ matrix.arq }}.dmg"
+          hdiutil attach -nobrowse -readonly -mountpoint /tmp/lotusdmg "dist/Lotus-Mac-${{ matrix.arq }}.dmg"
+          test -x /tmp/lotusdmg/Lotus.app/Contents/MacOS/Lotus
+          /tmp/lotusdmg/Lotus.app/Contents/MacOS/conversor-cli --listar | head -3
+          hdiutil detach /tmp/lotusdmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lotus-Mac-${{ matrix.arq }}
+          path: dist/Lotus-Mac-${{ matrix.arq }}.dmg
+
+  publicar:
+    # Só quando pedido (execução manual com "publicar") ou ao criar uma tag v*.
+    if: (github.event_name == 'workflow_dispatch' && inputs.publicar) || startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: pacotes
+      - name: Publicar a Release (Windows + Mac)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ver = python -c "import conversor; print(conversor.__version__)"
-          $tag = "v$ver"
-          $hash = (Get-FileHash dist/LotusSetup.exe -Algorithm SHA256).Hash
-          $notes = "Instalador do Lotus $ver para Windows (por usuário, sem administrador).`n`nSHA-256: $hash`n`nO instalador não tem assinatura digital: se o Windows SmartScreen avisar, clique em Mais informações > Executar assim mesmo."
-          $null = gh release view $tag 2>&1
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag dist/LotusSetup.exe --clobber
-          } else {
-            gh release create $tag dist/LotusSetup.exe --target $env:GITHUB_SHA --title "Lotus $ver" --notes $notes
-          }
-          if ($LASTEXITCODE -ne 0) { throw "falha ao publicar a Release" }
-          Write-Host "Release publicada: $tag"
+          VER=$(python3 -c "import conversor; print(conversor.__version__)")
+          TAG="v$VER"
+          ARQS="pacotes/LotusSetup/LotusSetup.exe pacotes/Lotus-Mac-AppleSilicon/Lotus-Mac-AppleSilicon.dmg pacotes/Lotus-Mac-Intel/Lotus-Mac-Intel.dmg"
+          for f in $ARQS; do test -f "$f" || { echo "faltando: $f"; exit 1; }; done
+          SHAS=$(cd pacotes && sha256sum */*.exe */*.dmg | sed 's|^|    |')
+          NOTAS=$(printf 'Lotus %s.\n\n- Windows: LotusSetup.exe (por usuário, sem administrador).\n- Mac Apple Silicon (M1/M2/M3/M4): Lotus-Mac-AppleSilicon.dmg\n- Mac Intel: Lotus-Mac-Intel.dmg\n\nSem assinatura paga: no Windows, SmartScreen → Mais informações → Executar assim mesmo. No Mac, na 1ª abertura: Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.\n\nSHA-256:\n%s\n' "$VER" "$SHAS")
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" $ARQS --clobber
+          else
+            gh release create "$TAG" $ARQS --target "$GITHUB_SHA" --title "Lotus $VER" --notes "$NOTAS"
+          fi
+          echo "Release publicada: $TAG"

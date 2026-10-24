@@ -5,7 +5,7 @@ Este arquivo é lido automaticamente pelo Claude Code em toda sessão. Ele é a
 
 ## O projeto
 
-Lotus: aplicativo Windows (Python + tkinter, empacotado com
+Lotus: aplicativo Windows e macOS (Python + tkinter, empacotado com
 PyInstaller) que converte arquivos **localmente**, sem internet.
 
 - `conversor/core/registry.py` — fonte única de verdade das conversões.
@@ -29,6 +29,10 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
   `widgets.py` (pílula, cartão, estilo ttk), `moldura.py` (moldura própria),
   `janela_aparencia.py`.
 - `scripts/gerar_previas.py` — imagens do design (artefato "Galeria-de-design" no CI).
+- `conversor/atalho/mac.py` — agente do Mac (Quartz Event Tap, seleção do
+  Finder via osascript, trava de instância, LaunchAgent).
+- `conversor/acao_rapida.py` — Ação Rápida do Finder (clique direito no Mac).
+- `scripts/ajustar_app_mac.py`, `scripts/capturar_mac.py` — empacotamento/diagnóstico Mac.
 - `installer/lotus.iss` — instalador Inno Setup (gerado e testado no CI).
 - `docs/FORMATOS.md` — GERADO por `scripts/gerar_formatos.py`. Não editar à mão.
 - `docs/ANALISE.md` — por que o projeto é assim e como evitar erros de IA.
@@ -94,3 +98,8 @@ python -m conversor --listar
     colorido a partir de 3:1 (padrão macOS, `tema.texto_sobre`).
 19. **Janela em camadas:** pixel com alfa > 0 captura cliques; sombras
     passam pelo corte de alfa < 8 em `render.desenhar_base`.
+20. **Mac:** nomes do pyobjc só se estiverem em `mac.NOMES_QUARTZ` (o CI do
+    Mac confere que existem). Nunca recarregar módulos (`importlib.reload`)
+    nos testes; para simular outro sistema, use um subprocesso.
+21. A Ação Rápida segue a estrutura de workflows reais (fontes no topo de
+    `acao_rapida.py`) e é EXECUTADA no CI com `automator -i`.

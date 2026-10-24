@@ -74,6 +74,12 @@ def _writable(folder: Path) -> bool:
 
 def run(winreg_module=None, root_prefix: str = "") -> list[str]:
     report = []
+    if sys.platform == "darwin" and winreg_module is None:
+        from conversor import acao_rapida
+
+        report.append("Ação Rápida do Finder: " + ("instalada." if acao_rapida.instalada()
+                                                    else "não instalada (Ferramentas → Instalar)."))
+        report.append(repair_autostart())
     if sys.platform == "win32" or winreg_module is not None:
         try:
             report.append(repair_menu(winreg_module, root_prefix))

@@ -74,6 +74,21 @@ def dispatch(argv: list[str]) -> int:
 
         return choose(argv[1:])
 
+    if argv and argv[0] == "--instalar-menu" and sys.platform == "darwin":
+        from conversor import acao_rapida
+
+        acao_rapida.instalar()
+        _show("Ação Rápida \"Converter com Lotus\" instalada. No Finder: clique com o botão "
+              "direito num arquivo → Ações Rápidas → Converter com Lotus.")
+        return 0
+
+    if argv and argv[0] == "--remover-menu" and sys.platform == "darwin":
+        from conversor import acao_rapida
+
+        acao_rapida.desinstalar()
+        _show("Ação Rápida removida.")
+        return 0
+
     if argv and argv[0] == "--instalar-menu":
         from conversor import shell
 
@@ -90,7 +105,10 @@ def dispatch(argv: list[str]) -> int:
         return 0
 
     if argv and argv[0] == "--agente":
-        from conversor.atalho.agente import executar
+        if sys.platform == "darwin":
+            from conversor.atalho.mac import executar
+        else:
+            from conversor.atalho.agente import executar
 
         return executar()
 
@@ -113,6 +131,12 @@ def dispatch(argv: list[str]) -> int:
 
         controle.parar_agente()
         controle.desativar_inicio()
+        if sys.platform == "darwin":
+            from conversor import acao_rapida
+
+            acao_rapida.desinstalar()
+            _show("Lotus removido do sistema (Ação Rápida, atalho e início automático).")
+            return 0
         n = shell.uninstall()
         _show(f"Lotus removido do sistema (menu em {n} tipos de arquivo, atalho e início automático).")
         return 0

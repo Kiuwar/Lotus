@@ -9,3 +9,6 @@ pypdf==6.21.2
 pypdfium2==5.14.0
 # Só no Windows: leitura da seleção do Explorer (painel flutuante). Licença PSF.
 pywin32==312; sys_platform == "win32"
+# Só no Mac: gancho de mouse (Quartz Event Tap) e AppKit. Licença MIT (PyPI, 2026-10-24).
+pyobjc-framework-Quartz==12.2.2; sys_platform == "darwin"
+pyobjc-framework-Cocoa==12.2.2; sys_platform == "darwin"

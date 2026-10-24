@@ -31,6 +31,26 @@ Para remover: *Configurações → Aplicativos → Lotus → Desinstalar*. Isso
 também remove o menu, o painel flutuante e o início automático. Sua
 configuração (`%APPDATA%\Lotus`) e os arquivos convertidos são mantidos.
 
+## Instalar no Mac
+
+1. Na página **Releases**, baixe o `.dmg` do seu Mac:
+   - **Lotus-Mac-AppleSilicon.dmg** para Macs com chip M1, M2, M3, M4…
+   - **Lotus-Mac-Intel.dmg** para Macs com processador Intel.
+   (Menu  → Sobre Este Mac → "Chip" ou "Processador".)
+2. Abra o `.dmg` e arraste o **Lotus** para **Aplicativos**.
+3. Na 1ª abertura o macOS bloqueia apps sem assinatura paga da Apple:
+   **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**.
+4. Para o painel por atalho (⌥ Option+⇧ Shift+clique): **Ajustes do
+   Sistema → Privacidade e Segurança → Acessibilidade → ative o Lotus**.
+   Na primeira vez que o painel ler os arquivos selecionados, o Mac pede
+   para o Lotus controlar o **Finder**: clique em **Permitir**.
+5. Clique direito: *Ferramentas → Instalar Ação Rápida do Finder*; depois,
+   no Finder, clique direito num arquivo → **Ações Rápidas → Converter com
+   Lotus**.
+
+No Mac a janela usa a moldura nativa do sistema (já arredondada, com as
+bolinhas). Conversões pelo Microsoft Word (DOCX↔PDF) existem só no Windows.
+
 ## Como usar
 
 **Interface:** abra `Lotus.exe`, clique em *Adicionar arquivos…*,
