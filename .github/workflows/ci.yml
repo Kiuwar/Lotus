@@ -215,6 +215,14 @@ jobs:
       - name: Testes (Mac)
         timeout-minutes: 10
         run: python -m pytest -v -rs
+      - name: Pilha nativa do travamento (se houve)
+        if: always()
+        run: |
+          if [ -f travamento-mac.txt ]; then
+            head -c 60000 travamento-mac.txt
+          else
+            echo "nenhum travamento registrado"
+          fi
       - name: Captura de tela do app no Mac (diagnóstico)
         continue-on-error: true
         run: python scripts/capturar_mac.py previas-mac/lotus-mac-${{ matrix.arq }}.png

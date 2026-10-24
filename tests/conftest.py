@@ -206,3 +206,47 @@ def _sem_erros_tcl():
     yield
     erros, ERROS_TCL[:] = list(ERROS_TCL), []
     assert not erros, "erro do Tcl em segundo plano:\n" + "\n---\n".join(erros)
+
+
+# ---------- vigia de travamento (só no Mac) ----------
+# No CI do Mac, update() do Tk às vezes fica preso em código nativo (a pilha
+# do Python não mostra o motivo). Se um teste passar do limite, gravamos a
+# pilha NATIVA de todas as threads com o `sample` do macOS e encerramos o
+# processo, em vez de esperar o limite do CI.
+_LIMITE_TESTE_S = 90
+
+
+@pytest.fixture(autouse=True)
+def _vigia_travamento_mac(request):
+    if sys.platform != "darwin":
+        yield
+        return
+    import faulthandler
+    import threading
+
+    feito = threading.Event()
+    destino = Path(os.environ.get("LOTUS_TRAVAMENTO", "travamento-mac.txt")).resolve()
+
+    def vigiar():
+        if feito.wait(_LIMITE_TESTE_S):
+            return
+        with open(destino, "w", encoding="utf-8") as f:
+            f.write(f"Teste travado há {_LIMITE_TESTE_S} s: {request.node.nodeid}\n\n== Python ==\n")
+            f.flush()
+            faulthandler.dump_traceback(file=f, all_threads=True)
+            for cmd in (["/usr/bin/sample", str(os.getpid()), "3"],
+                        ["sudo", "-n", "/usr/bin/sample", str(os.getpid()), "3"]):
+                f.write(f"\n== {' '.join(cmd)} ==\n")
+                f.flush()
+                try:
+                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+                    f.write(r.stdout + r.stderr)
+                    if r.returncode == 0:
+                        break
+                except Exception as e:  # noqa: BLE001 - diagnóstico, nunca derrubar aqui
+                    f.write(f"falhou: {e!r}\n")
+        os._exit(3)
+
+    threading.Thread(target=vigiar, name="vigia-travamento", daemon=True).start()
+    yield
+    feito.set()
