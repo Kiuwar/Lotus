@@ -75,8 +75,11 @@ def check(path: Path, fmt: str) -> str | None:
         return None if sniff(path) == "ole2" else f"não é um {fmt.upper()} (Office 97–2003) válido"
 
     if fmt == "docx":
-        # Um DOCX é um zip com word/document.xml; sniff() já confere isso.
-        return None if sniff(path) == "docx" else "não é um DOCX válido (falta word/document.xml)"
+        # Um DOCX é um zip com word/document.xml; sniff() confere isso. Depois, as
+        # partes XML precisam ser XML bem formado (senão o Word recusa abrir).
+        if sniff(path) != "docx":
+            return "não é um DOCX válido (falta word/document.xml)"
+        return _check_docx_xml(path)
 
     if fmt in {"html", "txt", "md"}:
         try:
@@ -89,6 +92,25 @@ def check(path: Path, fmt: str) -> str | None:
         return _check_media(path)
 
     return f"sem validador para {fmt}: adicione um em validate.py"
+
+
+def _check_docx_xml(path: Path) -> str | None:
+    import zipfile
+
+    from defusedxml import ElementTree as ET
+
+    try:
+        with zipfile.ZipFile(path) as z:
+            nomes = set(z.namelist())
+            if "[Content_Types].xml" not in nomes:
+                return "DOCX sem [Content_Types].xml"
+            for nome in sorted(n for n in nomes if n.endswith((".xml", ".rels"))):
+                ET.fromstring(z.read(nome))
+            corpo = ET.fromstring(z.read("word/document.xml")).find(
+                "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}body")
+    except Exception as e:
+        return f"DOCX com XML inválido: {e}"
+    return None if corpo is not None else "DOCX sem corpo (w:body)"
 
 
 def _csv_delim(path: Path) -> str:

@@ -4,7 +4,14 @@ Word: DOCX, DOC, RTF e ODT entre si e para PDF/XPS (igual a "Salvar como");
 PDF → DOCX pelo "PDF Reflow" do Word (layout aproximado, com aviso).
 PowerPoint: PPTX, PPT e ODP entre si e para PDF; uma imagem PNG/JPG por slide.
 
-Sem o programa, as conversões aparecem como indisponíveis (padrão do ffmpeg).
+Sem o programa, as conversões aparecem como indisponíveis (padrão do ffmpeg),
+com duas exceções que valem em qualquer sistema:
+  - DOCX → PDF sem o Word: PDF simples pelo fpdf2 (docx_escrita.py), com aviso;
+  - no Mac, DOCX/DOC/RTF/ODT entre si pelo `textutil` do macOS (e DOC/RTF/ODT
+    → TXT/HTML/PDF). Opções conferidas na página de manual do textutil:
+    `textutil -convert fmt -output arquivo origem`, fmt ∈ txt, html, rtf, rtfd,
+    doc, docx, wordml, odt, webarchive. HTML nunca entra no textutil: ele pode
+    buscar imagens na internet (regra 8).
 Constantes conferidas em learn.microsoft.com (VBA):
   WdSaveFormat: wdFormatDocument97 = 0, wdFormatRTF = 6, wdFormatDocumentDefault = 16,
     wdFormatPDF = 17, wdFormatXPS = 18, wdFormatOpenDocumentText = 23
@@ -19,7 +26,9 @@ Constantes conferidas em learn.microsoft.com (VBA):
 from __future__ import annotations
 
 import csv
+import shutil
 import subprocess
+import tempfile
 import sys
 import threading
 from functools import lru_cache
@@ -65,6 +74,30 @@ def _registrado(prog_id: str) -> bool:
 @lru_cache(maxsize=1)
 def word_disponivel() -> bool:
     return _registrado("Word.Application")
+
+
+@lru_cache(maxsize=1)
+def textutil_disponivel() -> bool:
+    return sys.platform == "darwin" and shutil.which("textutil") is not None
+
+
+def _word_ou_textutil() -> bool:
+    return word_disponivel() or textutil_disponivel()
+
+
+def _converter_com_textutil(src: Path, dst: Path, alvo: str) -> None:
+    try:
+        texto = ["-encoding", "UTF-8"] if alvo in ("txt", "html") else []
+        r = subprocess.run(["textutil", "-convert", alvo, *texto, "-output", str(dst), str(src)],
+                           capture_output=True, text=True, timeout=LIMITE_SEGUNDOS)
+    except subprocess.TimeoutExpired:
+        raise ConversionError(f"O textutil do macOS não terminou de converter {src.name} "
+                              f"em {LIMITE_SEGUNDOS} s.") from None
+    if r.returncode != 0 or not dst.is_file():
+        detalhe = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["sem detalhes"]
+        raise ConversionError(f"O textutil do macOS não conseguiu converter {src.name}: {detalhe[0]}. "
+                              "Como resolver: abra o arquivo no TextEdit ou no Pages e use "
+                              "Arquivo → Exportar.")
 
 
 @lru_cache(maxsize=1)
@@ -211,10 +244,57 @@ def _converter_com_powerpoint(src: Path, dst: Path, alvo: str, limite: float = L
                 lambda p: p.Quit())
 
 
-@register(["docx", "doc", "rtf", "odt"], ["pdf", "docx", "doc", "rtf", "odt", "xps"],
-          category="Word", notes=NOTES, available=word_disponivel)
+TEXTUTIL = ["docx", "doc", "rtf", "odt"]
+NOTES_WORD_MAC = "Requer o Microsoft Word (Windows) ou o textutil do macOS (já vem no Mac)."
+
+
+@register(["docx", "doc", "rtf", "odt"], ["xps"], category="Word", notes=NOTES,
+          available=word_disponivel)
 def word_salvar_como(src: Path, dst: Path, options: dict) -> None:
     _converter_com_word(src.resolve(), dst.resolve(), WD_FORMATOS[dst.suffix.lstrip(".")])
+
+
+@register(TEXTUTIL, TEXTUTIL, category="Word", notes=NOTES_WORD_MAC, available=_word_ou_textutil)
+def word_ou_textutil(src: Path, dst: Path, options: dict) -> None:
+    if word_disponivel():
+        word_salvar_como(src, dst, options)
+        return
+    _converter_com_textutil(src, dst, dst.suffix.lstrip("."))
+    options.setdefault("_warnings", []).append(
+        "Convertido pelo textutil do macOS: texto e formatação básica; imagens, cabeçalhos "
+        "e layout complexo podem se perder. Confira o documento.")
+
+
+@register(["docx"], ["pdf"], category="Word",
+          notes="Com o Word: igual ao Word. Sem o Word: PDF simples (texto, títulos, listas, tabelas).")
+def docx_para_pdf(src: Path, dst: Path, options: dict) -> None:
+    if word_disponivel():
+        word_salvar_como(src, dst, options)
+        return
+    from conversor.converters.docx_escrita import docx_para_pdf_simples
+
+    docx_para_pdf_simples(src, dst, options)
+
+
+@register(["doc", "rtf", "odt"], ["pdf"], category="Word",
+          notes=NOTES_WORD_MAC + " No Mac o PDF é simples (texto, títulos, listas, tabelas).",
+          available=_word_ou_textutil)
+def documento_para_pdf(src: Path, dst: Path, options: dict) -> None:
+    if word_disponivel():
+        word_salvar_como(src, dst, options)
+        return
+    with tempfile.TemporaryDirectory(prefix="lotus-") as pasta:
+        meio = Path(pasta) / (src.stem + ".docx")
+        _converter_com_textutil(src, meio, "docx")
+        from conversor.converters.docx_escrita import docx_para_pdf_simples
+
+        docx_para_pdf_simples(meio, dst, options)
+
+
+@register(["doc", "rtf", "odt"], ["txt", "html"], category="Documento",
+          notes="Requer o textutil do macOS (só no Mac).", available=textutil_disponivel)
+def documento_para_texto(src: Path, dst: Path, options: dict) -> None:
+    _converter_com_textutil(src, dst, dst.suffix.lstrip("."))
 
 
 @register(["pdf"], ["docx"], category="Word", notes=NOTES, available=word_disponivel)

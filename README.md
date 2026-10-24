@@ -22,9 +22,14 @@ Todas as versões, com o SHA-256 de cada arquivo:
   (só leitura: o Lotus não grava HEIC)
 - **PDF:** para imagens (PNG/JPG, uma por página) e para texto (TXT)
 - **Word, sem precisar do Word:** DOCX → TXT, Markdown e HTML (títulos,
-  listas, tabelas e links)
+  listas, tabelas e links); TXT, Markdown e HTML → DOCX (com os estilos de
+  título do Word); DOCX → PDF simples (texto, títulos, listas e tabelas — o
+  layout do Word não é reproduzido, e o Lotus avisa)
 - **Word, com o Microsoft Word instalado (Windows):** DOCX, DOC, RTF e ODT
-  entre si e para PDF e XPS; PDF → DOCX
+  entre si e para PDF (idêntico ao Word) e XPS; PDF → DOCX
+- **No Mac, sem o Word:** DOCX, DOC, RTF e ODT entre si e DOC/RTF/ODT → TXT,
+  HTML e PDF, pelo `textutil` que já vem no macOS
+- **Markdown e HTML:** para PDF, DOCX e TXT; HTML → Markdown
 - **PowerPoint, sem precisar do PowerPoint:** PPTX → TXT e Markdown (texto e
   notas de cada slide)
 - **PowerPoint, com o PowerPoint instalado (Windows):** PPTX, PPT e ODP entre
@@ -36,9 +41,9 @@ Todas as versões, com o SHA-256 de cada arquivo:
 - **Dados e texto:** CSV, JSON, XLSX entre si; TXT → PDF; Markdown → HTML
 
 Lista completa, gerada a partir do código: [docs/FORMATOS.md](docs/FORMATOS.md)
-(334 conversões). As que não dependem do Word/PowerPoint são testadas de
-verdade no CI (Windows, Mac e Linux); as do Word/PowerPoint, com o programa
-simulado — o CI não tem Office.
+(372 conversões). As que não dependem do Word/PowerPoint são testadas de
+verdade no CI (Windows, Mac e Linux; as do `textutil`, só no Mac); as do
+Word/PowerPoint, com o programa simulado — o CI não tem Office.
 
 ## Instalar no Windows
 

@@ -116,6 +116,11 @@ jobs:
           & $exe t.png --para avif --saida saida_avif
           & $exe saida_avif/t.avif --para png --saida saida_avif2
           if (!(Test-Path saida_avif2/t.png)) { throw "PNG <-> AVIF falhou no executável" }
+          # Documentos sem Word (o CI não tem Word): MD -> DOCX -> PDF simples.
+          "# Petição`n`n- ação`n" | Out-File -Encoding utf8 doc.md
+          & $exe doc.md --para docx --saida saida_doc
+          & $exe saida_doc/doc.docx --para pdf --saida saida_doc2
+          if (!(Test-Path saida_doc2/doc.pdf)) { throw "MD -> DOCX -> PDF falhou no executável" }
 
       - name: Teste do menu do botão direito (registro real do Windows)
         shell: pwsh
@@ -126,7 +131,9 @@ jobs:
           $key = "HKCU:\Software\Classes\SystemFileAssociations\.png\shell\Lotus.Converter"
           $label = (Get-ItemProperty $key).MUIVerb
           if ($label -ne "Converter para") { throw "rótulo inesperado: $label" }
-          $cmd = (Get-ItemProperty "$key\shell\14_pdf\command").'(default)'
+          $pdf = Get-ChildItem "$key\shell" | Where-Object { $_.PSChildName -like "*_pdf" } | Select-Object -First 1
+          if (-not $pdf) { throw "submenu PDF não encontrado" }
+          $cmd = (Get-ItemProperty "$key\shell\$($pdf.PSChildName)\command").'(default)'
           Write-Host "Comando registrado: $cmd"
           # Mesmo instalado pelo CLI, o menu precisa chamar o Lotus.exe (com janela).
           if ($cmd -ne "`"$dir\Lotus.exe`" --menu-converter pdf `"%1`"") { throw "comando inesperado" }
@@ -159,7 +166,9 @@ jobs:
           if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; throw "instalador saiu com $($p.ExitCode)" }
           if (!(Test-Path "$app\Lotus.exe")) { throw "Lotus.exe não instalado em $app" }
 
-          $cmd = (Get-ItemProperty "$menu\shell\14_pdf\command").'(default)'
+          $pdf = Get-ChildItem "$menu\shell" | Where-Object { $_.PSChildName -like "*_pdf" } | Select-Object -First 1
+          if (-not $pdf) { throw "submenu PDF não encontrado após instalar" }
+          $cmd = (Get-ItemProperty "$menu\shell\$($pdf.PSChildName)\command").'(default)'
           Write-Host "Menu: $cmd"
           if ($cmd -notlike "*$app\Lotus.exe*") { throw "menu não aponta para a instalação" }
 
@@ -292,6 +301,12 @@ jobs:
           $CLI foto.heic --para jpg --saida saida_heic && test -f saida_heic/foto.jpg
           $CLI t.png --para avif --saida saida_avif && $CLI saida_avif/t.avif --para png --saida saida_avif2
           test -f saida_avif2/t.png
+          # Documentos sem Word: MD -> DOCX -> PDF simples; RTF -> DOCX pelo textutil do macOS.
+          printf '# Petição\n\n- ação\n' > doc.md
+          $CLI doc.md --para docx --saida saida_doc && $CLI saida_doc/doc.docx --para pdf --saida saida_doc2
+          test -f saida_doc2/doc.pdf
+          printf '{\\rtf1\\ansi Peti\\'"'"'e7\\'"'"'e3o\\par}' > doc.rtf
+          $CLI doc.rtf --para docx --saida saida_rtf && test -f saida_rtf/doc.docx
 
       - name: Teste da Ação Rápida instalada pelo app
         run: |

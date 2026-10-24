@@ -24,7 +24,7 @@ ALIASES = {
     "mpg": "mpeg",
 }
 
-TEXT_FORMATS = {"csv", "json", "txt", "md"}
+TEXT_FORMATS = {"csv", "json", "txt", "md", "html"}
 
 _WEAK_SIGNATURES = {"bmp", "mp3", "aac"}
 

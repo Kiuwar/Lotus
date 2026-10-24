@@ -40,11 +40,12 @@ class Trecho:
 
 @dataclass
 class Bloco:
-    tipo: str                      # "titulo" | "par" | "item" | "tabela" | "nota"
+    tipo: str                      # "titulo" | "par" | "item" | "tabela" | "nota" | "codigo"
     trechos: list[Trecho] = field(default_factory=list)
     nivel: int = 0                 # título: 1–6; item: recuo (0, 1, …)
     ordenado: bool = False
     linhas: list[list[str]] = field(default_factory=list)
+    cabecalho: bool = False        # tabela: a 1ª linha é cabeçalho (<th> no HTML)
 
     def texto(self) -> str:
         return "".join(t.texto for t in self.trechos)
@@ -319,6 +320,8 @@ def para_txt(blocos: list[Bloco]) -> str:
             linhas.append("")
         elif b.tipo == "nota":
             linhas.append("Notas: " + b.texto())
+        elif b.tipo == "codigo":
+            linhas.extend(["", b.texto(), ""])
     return "\n".join(linhas).strip() + "\n"
 
 
@@ -365,6 +368,9 @@ def para_md(blocos: list[Bloco]) -> str:
                     saida.append(conteudo)
             elif b.tipo == "nota":
                 saida.append("> **Notas:** " + conteudo.replace("\n", "\n> "))
+            elif b.tipo == "codigo":
+                cerca = "````" if "```" in b.texto() else "```"
+                saida.extend([cerca, b.texto(), cerca])
             elif b.tipo == "tabela" and b.linhas:
                 largura = max(len(r) for r in b.linhas)
                 linhas = [r + [""] * (largura - len(r)) for r in b.linhas]
@@ -414,9 +420,12 @@ def para_html(blocos: list[Bloco], titulo: str) -> str:
             corpo.append(f"<p>{conteudo}</p>" if conteudo.strip() else "")
         elif b.tipo == "nota":
             corpo.append(f"<blockquote><strong>Notas:</strong> {conteudo}</blockquote>")
+        elif b.tipo == "codigo":
+            corpo.append(f"<pre><code>{html.escape(b.texto())}</code></pre>")
         elif b.tipo == "tabela":
-            linhas = "".join("<tr>" + "".join(f"<td>{html.escape(c)}</td>" for c in r) + "</tr>"
-                             for r in b.linhas)
+            linhas = "".join(
+                "<tr>" + "".join(f"<{t}>{html.escape(c)}</{t}>" for c in r) + "</tr>"
+                for i, r in enumerate(b.linhas) for t in ["th" if b.cabecalho and i == 0 else "td"])
             corpo.append(f"<table border=\"1\" cellspacing=\"0\" cellpadding=\"4\">{linhas}</table>")
     fechar_ate(0)
     return ("<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"utf-8\">\n"

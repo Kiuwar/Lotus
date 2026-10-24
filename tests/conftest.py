@@ -25,6 +25,16 @@ os.environ["APPDATA"] = tempfile.mkdtemp(prefix="lotus-test-config-")
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
 
 CSV_TEXT = 'nome;cep;preço\nJoão;01234-000;10,50\nAna;"=SOMA(1;2)";7\n'
+HTML_TEXT = """<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Página</title><style>p { color: red }</style><script>alert("x")</script></head>
+<body><h1>Contrato de serviço</h1>
+<p>Partes: <b>Ana</b> e <i>João</i>, ver <a href="https://exemplo.com.br/termos">termos</a>
+e <a href="javascript:alert(1)">não clique</a>.</p>
+<ol><li>Primeira cláusula</li><li>Segunda cláusula<ul><li>Subitem</li></ul></li></ol>
+<table><tr><th>Item</th><th>Valor</th></tr><tr><td>Taxa</td><td>R$ 10,50</td></tr></table>
+<img src="https://exemplo.com.br/logo.png"><pre>código   alinhado</pre>
+</body></html>
+"""
 JSON_DATA = [
     {"nome": "João", "cep": "01234-000", "itens": [1, 2]},
     {"nome": "Ana", "idade": 30},
@@ -68,8 +78,16 @@ def make_sample(fmt: str, folder: Path) -> Path:
         make_opendocument(path, "application/vnd.oasis.opendocument.presentation")
     elif fmt == "rtf":
         path.write_bytes(b"{\\rtf1\\ansi Peti\\'e7\\'e3o: a\\'e7\\'e3o de cobran\\'e7a\\par}")
+    elif fmt == "html":
+        path.write_text(HTML_TEXT, encoding="utf-8")
+    elif fmt == "doc" and sys.platform == "darwin" and shutil.which("textutil"):
+        # No Mac o próprio sistema cria um .doc (Word 97–2003) de verdade.
+        rtf = folder / "_base.rtf"
+        rtf.write_bytes(b"{\\rtf1\\ansi Peti\\'e7\\'e3o: a\\'e7\\'e3o de cobran\\'e7a\\par}")
+        subprocess.run(["textutil", "-convert", "doc", "-output", str(path), str(rtf)], check=True)
+        rtf.unlink()
     elif fmt in {"doc", "ppt"}:
-        # Office 97–2003 só se cria com o próprio Word/PowerPoint.
+        # Office 97–2003 só se cria com o próprio Word/PowerPoint (ou o textutil do Mac).
         pytest.skip(f"amostra .{fmt} exige o Office para ser criada")
     elif fmt in {"mp3", "wav", "ogg", "flac", "m4a", "aac", "opus", "wma", "aiff"}:
         _ffmpeg(["-f", "lavfi", "-i", "sine=frequency=440:duration=1"], path)
@@ -240,11 +258,29 @@ def make_pptx(path: Path) -> Path:
 
 
 def make_opendocument(path: Path, mime: str) -> Path:
+    """ODF mínimo válido (mimetype sem compressão em 1º, manifesto e conteúdo)."""
     import zipfile
 
+    ns = ('xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+          'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" '
+          'xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"')
+    if mime.endswith(".text"):
+        corpo = ('<office:text><text:h text:outline-level="1">Petição</text:h>'
+                 '<text:p>Ação de cobrança</text:p></office:text>')
+    else:
+        corpo = '<office:presentation><draw:page draw:name="1"/></office:presentation>'
     with zipfile.ZipFile(path, "w") as z:
-        z.writestr("mimetype", mime)  # 1º arquivo, como manda o formato
-        z.writestr("content.xml", "<office:document-content/>")
+        z.writestr("mimetype", mime)  # 1º arquivo e sem compressão, como manda o formato
+        z.writestr("META-INF/manifest.xml", (
+            '<?xml version="1.0" encoding="UTF-8"?><manifest:manifest '
+            'xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2">'
+            f'<manifest:file-entry manifest:full-path="/" manifest:media-type="{mime}"/>'
+            '<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>'
+            '</manifest:manifest>'), compress_type=zipfile.ZIP_DEFLATED)
+        z.writestr("content.xml", (
+            f'<?xml version="1.0" encoding="UTF-8"?><office:document-content {ns} office:version="1.2">'
+            f'<office:body>{corpo}</office:body></office:document-content>'),
+            compress_type=zipfile.ZIP_DEFLATED)
     return path
 
 

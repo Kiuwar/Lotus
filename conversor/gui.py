@@ -29,10 +29,19 @@ def situacao_arquivo(fmt: str) -> str:
     """Texto da coluna Situação para um arquivo já detectado."""
     if registry.targets_for(fmt):
         return "pronto"
-    todos = [c for c in registry.all_converters() if c.source == fmt]
-    if todos:  # existe conversão, mas falta Word/ffmpeg
-        return "indisponível: " + todos[0].notes.rstrip(".").lower()
+    nota = _nota_principal(fmt)
+    if nota is not None:  # existe conversão, mas falta Word/ffmpeg
+        return "indisponível: " + nota.rstrip(".").lower()
     return f"sem conversão para {fmt.upper()}"
+
+
+def _nota_principal(fmt: str) -> str | None:
+    """O requisito que libera mais conversões desse formato (ex.: o Word, e não
+    o textutil, que só vale no Mac e só para TXT/HTML)."""
+    from collections import Counter
+
+    notas = Counter(c.notes for c in registry.all_converters() if c.source == fmt)
+    return notas.most_common(1)[0][0] if notas else None
 
 
 def motivo_sem_destino(formats: list[str]) -> str | None:
@@ -45,9 +54,9 @@ def motivo_sem_destino(formats: list[str]) -> str | None:
     if sem:
         partes = []
         for f in sem:
-            conv = next((c for c in registry.all_converters() if c.source == f), None)
-            if conv:
-                partes.append(f"{f.upper()}: {conv.notes}")
+            nota = _nota_principal(f)
+            if nota is not None:
+                partes.append(f"{f.upper()}: {nota.rstrip('.')}")
             else:
                 partes.append(f"arquivos {f.upper()} ainda não podem ser convertidos pelo Lotus")
         return "Sem conversão disponível — " + "; ".join(partes) + "."

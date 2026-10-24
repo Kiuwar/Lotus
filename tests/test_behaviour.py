@@ -456,3 +456,13 @@ def test_avif_to_pdf_flattens_with_warning(tmp_path, sample):
     res = convert_file(sample("avif"), "pdf", out_dir=tmp_path / "o")
     assert res.output.read_bytes().startswith(b"%PDF-")
     assert any("transparência" in w for w in res.warnings)
+
+
+# ---------- documentos sem Word (detalhes em test_docx_escrita.py) ----------
+
+def test_txt_to_docx_content_is_read_back_by_independent_reader(sample, tmp_path):
+    docx = pytest.importorskip("docx")
+    out = convert_file(sample("txt"), "docx", out_dir=tmp_path / "o").output
+    paragrafos = [p.text for p in docx.Document(str(out)).paragraphs]
+    assert paragrafos[:2] == ["Olá, ação e coração.", "\tLinha com tab."]
+    assert paragrafos[2] == "x" * 300

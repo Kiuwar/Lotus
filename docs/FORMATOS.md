@@ -2,7 +2,7 @@
 
 <!-- Arquivo GERADO por scripts/gerar_formatos.py. Não edite à mão. -->
 
-Total: **358 conversões**, todas cobertas por tests/test_matrix.py.
+Total: **372 conversões**, todas cobertas por tests/test_matrix.py.
 
 ## Apresentação
 
@@ -24,15 +24,29 @@ Observação: Texto e notas de cada slide (sem PowerPoint); imagens e layout nã
 
 | Origem | Destinos |
 |---|---|
+| DOC | HTML, TXT |
 | DOCX | HTML, MD, TXT |
-| MD | HTML |
-| TXT | PDF |
+| HTML | DOCX, MD, PDF, TXT |
+| MD | DOCX, HTML, PDF, TXT |
+| ODT | HTML, TXT |
+| RTF | HTML, TXT |
+| TXT | DOCX, PDF |
 
 Observação: Markdown com tabelas e blocos de código.
+
+Observação: Requer o textutil do macOS (só no Mac).
+
+Observação: Sem Word: títulos, listas, tabelas e links; layout simples em A4.
+
+Observação: Sem Word: títulos, listas, tabelas, links e negrito/itálico viram estilos do Word.
+
+Observação: Só o texto e a estrutura da página.
 
 Observação: Texto simples, A4, fonte 11.
 
 Observação: Texto, títulos, listas, tabelas e links (sem Word); fontes, cores e imagens não.
+
+Observação: Tira a marcação; mantém listas e tabelas.
 
 ## Imagem
 
@@ -109,6 +123,12 @@ Observação: Requer ffmpeg instalado (veja README, seção ffmpeg).
 | ODT | DOC, DOCX, PDF, RTF, XPS |
 | PDF | DOCX |
 | RTF | DOC, DOCX, ODT, PDF, XPS |
+
+Observação: Com o Word: igual ao Word. Sem o Word: PDF simples (texto, títulos, listas, tabelas).
+
+Observação: Requer o Microsoft Word (Windows) ou o textutil do macOS (já vem no Mac).
+
+Observação: Requer o Microsoft Word (Windows) ou o textutil do macOS (já vem no Mac). No Mac o PDF é simples (texto, títulos, listas, tabelas).
 
 Observação: Requer o Microsoft Word instalado neste computador.
 
