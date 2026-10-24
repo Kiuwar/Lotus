@@ -287,6 +287,42 @@ Automação; o gesto no Finder/Mesa; a Ação Rápida aparecendo no menu do
 Finder; Gatekeeper ("Abrir Mesmo Assim"); aparência do painel transparente
 (o CI tenta um print, mas o macOS pode bloquear a captura de tela).
 
+## 4.6. Versão 0.7.0: mais formatos, ícone ao lado do relógio e flor de lótus
+
+**Decisões e por quê:**
+- **DOCX/PPTX → texto sem Office** com `zipfile` + `defusedxml`, sem
+  `python-docx`/`python-pptx`: as duas puxariam `lxml` (biblioteca compilada,
+  pacote maior em cada sistema). O formato (ECMA-376) é XML dentro de ZIP;
+  `defusedxml` já vinha com o `fpdf2` e protege contra XML malicioso.
+- **Estilos de título pelo NOME, não pelo ID:** o Word em português grava o
+  ID localizado (`Ttulo1`), mas o nome interno é sempre `heading 1`
+  (`word/styles.xml`). Ler só o ID quebraria todo documento em português.
+- **Constantes do Office** conferidas na documentação da Microsoft e listadas
+  no topo de `office.py`; o vigia de tempo do Word virou genérico e vale para
+  o PowerPoint.
+- **Ícone ao lado do relógio** com a API do pywin32 conferida no exemplo
+  oficial do projeto; a thread só enfileira comandos (regra 11). O CI do
+  Windows provou: ícone entra, menu e duplo clique chegam, ícone sai.
+- **Ícone da flor** desenhado por código (sem imagem de terceiros, sem
+  licença a checar); tamanhos ≤ 32 px têm desenho próprio (mais legível).
+
+**Erros que os testes pegaram nesta versão (e a lição):**
+- Painel radial: a distância mínima entre caixas só valia na horizontal; na
+  diagonal duas caixas se sobrepunham. Só apareceu com 12 caixas (vídeo).
+  Lição: geometria se testa com o pior caso real, não com o caso típico.
+- "Mais…" enchia os grupos em ordem e o grupo Vídeo sumia inteiro.
+- MPEG-2 só aceita taxas de quadros padrão; este ffmpeg aceitou 10 q/s, mas
+  outras versões recusam — a taxa é ajustada pela regra do formato, não pelo
+  comportamento de uma versão.
+- Codificador interno do Opus/Vorbis só funciona em modo experimental e com
+  limites (48 kHz / 2 canais): descoberto rodando o ffmpeg, não lendo.
+- `--listar` dizia "requer ffmpeg" para conversões do Word.
+
+**NÃO verificado (teste manual seu):** conversões reais com Word e
+PowerPoint instalados (o CI não tem Office); aparência do ícone ao lado do
+relógio no seu Windows 10; abrir *Configurar atalho…* e *Aparência…* pelo
+ícone.
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office

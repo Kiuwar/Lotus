@@ -1,31 +1,54 @@
 # Lotus
 
-Uma ferramenta para converter arquivos pelo computador: aplicativo para Windows que converte arquivos entre formatos **no seu
-computador**, sem enviar nada para a internet.
+Converte arquivos entre formatos **no seu computador** (Windows e Mac),
+sem enviar nada para a internet.
 
-- Imagens: PNG, JPG, WEBP, BMP, GIF, TIFF, ICO (entre si e para PDF)
-- Dados: CSV, JSON, XLSX (entre si)
-- PDF: para imagens (PNG/JPG, uma por página) e para texto (TXT)
-- Word (se o Microsoft Word estiver instalado): DOCX → PDF e PDF → DOCX
-- Documentos: TXT → PDF, Markdown → HTML
-- Áudio e vídeo (com ffmpeg): MP3, WAV, OGG, FLAC, M4A, MP4, MKV, WEBM, AVI, MOV
+## Baixar
 
-Lista completa e sempre atualizada: [docs/FORMATOS.md](docs/FORMATOS.md)
-(gerada a partir do código; 122 conversões, todas testadas).
+| Sistema | Arquivo |
+|---|---|
+| **Windows 10/11** | [**LotusSetup.exe**](https://github.com/Kiuwar/Lotus/releases/latest/download/LotusSetup.exe) |
+| **Mac com chip Apple** (M1, M2, M3, M4…) | [**Lotus-Mac-AppleSilicon.dmg**](https://github.com/Kiuwar/Lotus/releases/latest/download/Lotus-Mac-AppleSilicon.dmg) |
+| **Mac com processador Intel** | [**Lotus-Mac-Intel.dmg**](https://github.com/Kiuwar/Lotus/releases/latest/download/Lotus-Mac-Intel.dmg) |
+
+Os links baixam sempre a versão mais nova, sem precisar de conta no GitHub.
+Todas as versões, com o SHA-256 de cada arquivo:
+[Releases](https://github.com/Kiuwar/Lotus/releases).
+
+## O que converte
+
+- **Imagens:** PNG, JPG, WEBP, BMP, GIF, TIFF, ICO (entre si e para PDF)
+- **PDF:** para imagens (PNG/JPG, uma por página) e para texto (TXT)
+- **Word, sem precisar do Word:** DOCX → TXT, Markdown e HTML (títulos,
+  listas, tabelas e links)
+- **Word, com o Microsoft Word instalado (Windows):** DOCX, DOC, RTF e ODT
+  entre si e para PDF e XPS; PDF → DOCX
+- **PowerPoint, sem precisar do PowerPoint:** PPTX → TXT e Markdown (texto e
+  notas de cada slide)
+- **PowerPoint, com o PowerPoint instalado (Windows):** PPTX, PPT e ODP entre
+  si e para PDF; uma imagem PNG/JPG por slide
+- **Áudio (com ffmpeg):** MP3, WAV, OGG, FLAC, M4A, AAC, OPUS, WMA, AIFF;
+  de qualquer vídeo também; áudio → MP4 (tela preta, para sites que só aceitam vídeo)
+- **Vídeo (com ffmpeg):** MP4, MKV, WEBM, AVI, MOV, WMV, MPEG, M4V; vídeo →
+  GIF animado e vídeo → imagem (PNG/JPG)
+- **Dados e texto:** CSV, JSON, XLSX entre si; TXT → PDF; Markdown → HTML
+
+Lista completa, gerada a partir do código: [docs/FORMATOS.md](docs/FORMATOS.md)
+(334 conversões). As que não dependem do Word/PowerPoint são testadas de
+verdade no CI (Windows, Mac e Linux); as do Word/PowerPoint, com o programa
+simulado — o CI não tem Office.
 
 ## Instalar no Windows
 
-1. Baixe o **LotusSetup.exe** na página **Releases** do repositório
-   (coluna da direita da página inicial, ou a aba *Code → Releases*), em
-   *Assets*. Também fica como artefato **LotusSetup** em cada execução
-   verde da aba *Actions* (vem em .zip; extraia; exige login no GitHub).
+1. Baixe o [**LotusSetup.exe**](https://github.com/Kiuwar/Lotus/releases/latest/download/LotusSetup.exe).
 2. Execute o `LotusSetup.exe`. Não precisa de administrador: instala só
    para o seu usuário em `%LOCALAPPDATA%\Programs\Lotus`.
 3. Como o instalador não tem assinatura digital, o Windows SmartScreen pode
    mostrar "O Windows protegeu o computador". Clique em *Mais informações* →
    *Executar assim mesmo*.
 4. Na instalação você escolhe: menu do botão direito, painel flutuante
-   (Ctrl+Shift+clique) e atalho na área de trabalho.
+   (Ctrl+Shift+clique), **ícone ao lado do relógio** e atalho na área de
+   trabalho.
 
 Para remover: *Configurações → Aplicativos → Lotus → Desinstalar*. Isso
 também remove o menu, o painel flutuante e o início automático. Sua
@@ -90,6 +113,18 @@ formatos, a caixa **Mais…** abre a lista completa.
 - Na área de trabalho, só vale o clique **sobre os ícones**.
 - Roda em segundo plano (processo `Lotus.exe`) e inicia com o Windows
   enquanto estiver ligado. Para desligar: desmarque a opção na mesma janela.
+
+**Ícone ao lado do relógio (Windows):** a flor do Lotus fica na área de
+notificação, ao lado do relógio, desde que o Windows inicia.
+- **Duplo clique:** abre o Lotus.
+- **Clique direito:** *Converter arquivos…*, ligar/desligar o *Painel por
+  atalho*, *Configurar atalho…*, *Aparência…* e *Fechar o Lotus* (ele volta
+  ao ligar o computador).
+- O Windows escolhe se o ícone aparece na barra ou dentro da setinha **^**:
+  nenhum programa pode forçar isso. Para deixá-lo sempre visível, arraste o
+  ícone para fora da setinha, ou ligue-o em *Configurações → Personalização
+  → Barra de tarefas → Selecionar quais ícones aparecem na barra de tarefas*.
+- Para desligar ou religar: no Lotus, *Ferramentas → Ícone ao lado do relógio*.
 
 **Aparência (Ferramentas → Aparência…):** estilo macOS, com prévia ao vivo.
 - Temas prontos: **Sistema, Grafite, Azul Mac, Rosa, Verde**.
