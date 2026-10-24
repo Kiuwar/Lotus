@@ -24,6 +24,9 @@ winrt-Windows.Foundation.Collections==3.2.1; sys_platform == "win32"
 winrt-Windows.Globalization==3.2.1; sys_platform == "win32"
 winrt-Windows.Graphics.Imaging==3.2.1; sys_platform == "win32"
 winrt-Windows.Media.Ocr==3.2.1; sys_platform == "win32"
+# A imagem entregue ao OCR passa por um buffer de Windows.Storage(.Streams).
+winrt-Windows.Storage==3.2.1; sys_platform == "win32"
+winrt-Windows.Storage.Streams==3.2.1; sys_platform == "win32"
 # Só no Mac: certificados para a conexão HTTPS de "Procurar atualização" (o Python
 # empacotado não enxerga os do sistema). Verificado no PyPI em 2026-10-24. MPL-2.0.
 certifi==2026.10.23; sys_platform == "darwin"
