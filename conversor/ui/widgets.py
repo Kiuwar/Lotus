@@ -192,3 +192,22 @@ def aplicar_estilo_ttk(root: tk.Misc, pal: Paleta) -> ttk.Style:
     root.option_add("*TCombobox*Listbox.selectBackground", pal.destaque)
     root.option_add("*TCombobox*Listbox.selectForeground", texto_sobre(pal.destaque))
     return st
+
+
+def trazer_para_frente(janela: tk.Toplevel) -> None:
+    """Abre a janela na frente das outras (ex.: aberta pelo ícone ao lado do
+    relógio, cuja raiz é invisível). O `after` fica no `master` da janela, que
+    continua existindo: fechar a janela antes não deixa comando apagado na fila
+    do Tcl (regra 22)."""
+
+    def soltar() -> None:
+        try:
+            if janela.winfo_exists():
+                janela.attributes("-topmost", False)
+        except tk.TclError:
+            pass
+
+    janela.lift()
+    janela.attributes("-topmost", True)
+    janela.focus_force()
+    janela.master.after(400, soltar)

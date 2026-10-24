@@ -161,6 +161,12 @@ class App(ttk.Frame):
         nome_menu = "Ação Rápida do Finder" if sys.platform == "darwin" else "menu do botão direito"
         tools.add_command(label="Aparência…", command=self.configure_appearance)
         tools.add_command(label="Atalho do painel flutuante…", command=self.configure_hotkey)
+        if sys.platform == "win32":
+            from conversor.atalho import config as cfg_atalho
+
+            self.bandeja_var = tk.BooleanVar(value=cfg_atalho.carregar().bandeja)
+            tools.add_checkbutton(label="Ícone ao lado do relógio", variable=self.bandeja_var,
+                                  command=self.toggle_tray)
         tools.add_separator()
         tools.add_command(label=f"Instalar {nome_menu}", command=self.install_menu, state=suportado)
         tools.add_command(label=f"Remover {nome_menu}", command=self.uninstall_menu, state=suportado)
@@ -204,6 +210,12 @@ class App(ttk.Frame):
         from conversor import shell
 
         self._log(f"Menu removido de {shell.uninstall()} tipos de arquivo.")
+
+    def toggle_tray(self) -> None:
+        from conversor.atalho import controle
+
+        ligar = self.bandeja_var.get()
+        self._log(controle.ativar_bandeja() if ligar else controle.desativar_bandeja())
 
     def configure_appearance(self) -> None:
         from conversor.ui.janela_aparencia import JanelaAparencia

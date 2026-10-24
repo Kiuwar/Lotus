@@ -177,6 +177,9 @@ def executar() -> int:
     from conversor.ui import icone
 
     log = get_logger()
+    if not controle.precisa_rodar(config.carregar()):
+        log.info("agente: atalho e ícone desligados; nada a fazer")
+        return 0
     mutex = winapi.criar_mutex_unico()
     if mutex is None:
         log.info("agente já está rodando; esta instância vai sair")
@@ -246,6 +249,7 @@ def executar() -> int:
     def executar_comando(cmd: str) -> None:
         from conversor.atalho.janela_config import JanelaAtalho
         from conversor.ui.janela_aparencia import JanelaAparencia
+        from conversor.ui.widgets import trazer_para_frente
 
         if cmd == bandeja_mod.ABRIR:
             subprocess.Popen(shell.launcher_command(), close_fds=True)
@@ -258,9 +262,9 @@ def executar() -> int:
             controle.ativar_inicio()
             recarregar_config()
         elif cmd == bandeja_mod.CONFIGURAR:
-            JanelaAtalho(root)
+            trazer_para_frente(JanelaAtalho(root))
         elif cmd == bandeja_mod.APARENCIA:
-            JanelaAparencia(root)
+            trazer_para_frente(JanelaAparencia(root))
         elif cmd == bandeja_mod.SAIR:
             log.info("agente: fechado pelo menu do ícone")
             root.destroy()

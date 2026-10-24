@@ -184,3 +184,36 @@ def test_appearance_reset_and_color_reset(root):
     j.padrao()
     assert j.aparencia() == tema.PADRAO
     j.destroy()
+
+
+def test_window_brought_to_front_then_closed_early_leaves_no_tcl_error(root):
+    import time
+
+    from conversor.ui.widgets import trazer_para_frente
+
+    j = tk.Toplevel(root)
+    trazer_para_frente(j)
+    root.update()
+    j.destroy()  # fechada antes de soltar o "sempre na frente"
+    fim = time.time() + 0.7
+    while time.time() < fim:
+        root.update()
+        time.sleep(0.02)
+    # a fixture _sem_erros_tcl (conftest) reprova se algum after disparou num comando apagado
+
+
+def test_window_stops_being_topmost_after_a_moment(root):
+    """Sem gerenciador de janelas (xvfb) o -topmost não "pega"; o que dá para
+    conferir em todo sistema: o ajuste roda, a janela continua aberta, sem erro."""
+    import time
+
+    from conversor.ui.widgets import trazer_para_frente
+
+    j = tk.Toplevel(root)
+    trazer_para_frente(j)
+    fim = time.time() + 0.7
+    while time.time() < fim:
+        root.update()
+        time.sleep(0.02)
+    assert j.winfo_exists() and int(j.attributes("-topmost")) == 0
+    j.destroy()
