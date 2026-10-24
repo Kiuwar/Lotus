@@ -466,3 +466,88 @@ def test_txt_to_docx_content_is_read_back_by_independent_reader(sample, tmp_path
     paragrafos = [p.text for p in docx.Document(str(out)).paragraphs]
     assert paragrafos[:2] == ["Olá, ação e coração.", "\tLinha com tab."]
     assert paragrafos[2] == "x" * 300
+
+
+# ---------- planilhas → tabela (HTML, Markdown, PDF) ----------
+
+def _planilha(path: Path) -> Path:
+    import datetime as dt
+
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Custas"
+    ws.append(["Item", "Valor", "Taxa", "Data", "Total"])
+    ws.append(["Petição <inicial>", 10.5, 0.15, dt.date(2026, 10, 24), "=B2*2"])
+    ws["C2"].number_format = "0%"
+    ws.append(["Perícia | laudo", 1200, None, dt.datetime(2026, 1, 2, 14, 30), None])
+    resumo = wb.create_sheet("Resumo")
+    resumo.append(["Total", 1210.5])
+    oculta = wb.create_sheet("Rascunho")
+    oculta.sheet_state = "hidden"
+    oculta.append(["anotação"])
+    wb.save(path)
+    return path
+
+
+def test_xlsx_to_markdown_has_every_sheet_and_brazilian_formats(tmp_path):
+    r = convert_file(_planilha(tmp_path / "custas.xlsx"), "md", out_dir=tmp_path / "o")
+    md = r.output.read_text(encoding="utf-8")
+    assert "## Custas" in md and "## Resumo" in md and "## Rascunho (oculta)" in md
+    assert "| Petição \\<inicial\\> | 10,5 | 15% | 24/10/2026 |  |" in md
+    assert "| Perícia \\| laudo | 1200 |  | 02/01/2026 14:30 |  |" in md
+    assert "| Total | 1210,5 |" in md
+    avisos = " ".join(r.warnings)
+    assert "1 fórmula(s) sem resultado" in avisos and "Como resolver" in avisos
+    assert "Rascunho" in avisos, "aba oculta incluída e avisada"
+
+
+def test_xlsx_to_html_is_escaped_table_with_header(tmp_path):
+    out = convert_file(_planilha(tmp_path / "custas.xlsx"), "html", out_dir=tmp_path / "o").output
+    h = out.read_text(encoding="utf-8")
+    assert "<th>Item</th><th>Valor</th>" in h
+    assert "<td>Petição &lt;inicial&gt;</td>" in h and "<inicial>" not in h
+    assert h.count("<table>") == 3
+
+
+def test_csv_to_html_keeps_text_exactly(sample, tmp_path):
+    h = convert_file(sample("csv"), "html", out_dir=tmp_path / "o").output.read_text(encoding="utf-8")
+    assert "<td>01234-000</td>" in h, "CEP continua texto (zero à esquerda)"
+    assert "<td>=SOMA(1;2)</td>" in h and "<td>10,50</td>" in h
+    assert "<th>preço</th>" in h
+
+
+def test_spreadsheet_to_pdf_has_the_data(tmp_path):
+    from pypdf import PdfReader
+
+    out = convert_file(_planilha(tmp_path / "custas.xlsx"), "pdf", out_dir=tmp_path / "o").output
+    paginas = PdfReader(str(out)).pages
+    assert len(paginas) == 3, "uma página por aba"
+    texto = paginas[0].extract_text()
+    assert "Petição <inicial>" in texto and "15%" in texto and "24/10/2026" in texto
+
+
+def test_huge_sheet_pdf_is_limited_with_warning(tmp_path, monkeypatch):
+    from conversor.converters import tabelas
+
+    monkeypatch.setattr(tabelas, "LIMITE_LINHAS_PDF", 3)
+    src = tmp_path / "grande.csv"
+    src.write_text("n;v\n" + "".join(f"{i};x\n" for i in range(10)), encoding="utf-8")
+    r = convert_file(src, "pdf", out_dir=tmp_path / "o")
+    assert any("10 linhas" in w and "HTML" in w for w in r.warnings)
+
+
+def test_json_to_markdown_table(sample, tmp_path):
+    md = convert_file(sample("json"), "md", out_dir=tmp_path / "o").output.read_text(encoding="utf-8")
+    assert md.startswith("| nome | cep | itens | idade |")
+    assert "| João | 01234-000 | \\[1, 2\\] |  |" in md
+
+
+def test_empty_spreadsheet_to_table_explains(tmp_path):
+    from openpyxl import Workbook
+
+    src = tmp_path / "vazia.xlsx"
+    Workbook().save(src)
+    with pytest.raises(ConversionError, match="não tem dados"):
+        convert_file(src, "html", out_dir=tmp_path / "o")

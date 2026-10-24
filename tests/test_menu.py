@@ -52,7 +52,9 @@ def test_chooser_shows_one_box_per_target(root, sample):
 
 def test_chooser_intersects_multiple_files(root, sample):
     ch = menu.Chooser(root, [str(sample("png")), str(sample("csv"))])
-    assert ch.buttons == {}  # imagem e planilha não têm destino em comum
+    assert sorted(ch.buttons) == ["pdf"]  # imagem e planilha: só o PDF é comum
+    ch = menu.Chooser(root, [str(sample("png")), str(sample("pptx"))])
+    assert ch.buttons == {}  # sem PowerPoint, PPTX só vira TXT/MD
 
 
 def test_chooser_converts_on_click(root, sample):

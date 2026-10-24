@@ -2,7 +2,7 @@
 
 <!-- Arquivo GERADO por scripts/gerar_formatos.py. Não edite à mão. -->
 
-Total: **372 conversões**, todas cobertas por tests/test_matrix.py.
+Total: **381 conversões**, todas cobertas por tests/test_matrix.py.
 
 ## Apresentação
 
@@ -16,9 +16,11 @@ Observação: Texto e notas de cada slide (sem PowerPoint); imagens e layout nã
 
 | Origem | Destinos |
 |---|---|
-| CSV | JSON, XLSX |
-| JSON | CSV, XLSX |
-| XLSX | CSV, JSON |
+| CSV | HTML, JSON, MD, PDF, XLSX |
+| JSON | CSV, HTML, MD, PDF, XLSX |
+| XLSX | CSV, HTML, JSON, MD, PDF |
+
+Observação: Todas as abas; números com vírgula decimal e datas dd/mm/aaaa; sem cores nem gráficos.
 
 ## Documento
 

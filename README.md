@@ -39,9 +39,11 @@ Todas as versões, com o SHA-256 de cada arquivo:
 - **Vídeo (com ffmpeg):** MP4, MKV, WEBM, AVI, MOV, WMV, MPEG, M4V; vídeo →
   GIF animado e vídeo → imagem (PNG/JPG)
 - **Dados e texto:** CSV, JSON, XLSX entre si; TXT → PDF; Markdown → HTML
+- **Planilhas como tabela para ler e imprimir:** XLSX, CSV e JSON → HTML,
+  Markdown e PDF (todas as abas; números com vírgula e datas dd/mm/aaaa)
 
 Lista completa, gerada a partir do código: [docs/FORMATOS.md](docs/FORMATOS.md)
-(372 conversões). As que não dependem do Word/PowerPoint são testadas de
+(381 conversões). As que não dependem do Word/PowerPoint são testadas de
 verdade no CI (Windows, Mac e Linux; as do `textutil`, só no Mac); as do
 Word/PowerPoint, com o programa simulado — o CI não tem Office.
 

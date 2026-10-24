@@ -13,8 +13,8 @@ from conversor.gui import App, common_targets  # noqa: E402
 
 
 def test_common_targets_is_intersection():
-    both = common_targets(["png", "csv"])
-    assert both == []
+    assert common_targets(["png", "csv"]) == ["pdf"], "imagem e planilha: ambos viram PDF"
+    assert common_targets(["png", "pptx"]) == []
     assert "pdf" in common_targets(["png", "jpg"])
     assert "png" not in common_targets(["png"])
 
