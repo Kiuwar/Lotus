@@ -59,6 +59,36 @@ def has_ffmpeg() -> bool:
     return ffmpeg_path() is not None
 
 
+@lru_cache(maxsize=4)
+def _codificadores(exe: str) -> frozenset[str]:
+    """Nomes da lista `ffmpeg -encoders` (2ª coluna) da compilação instalada."""
+    proc = subprocess.run([exe, "-hide_banner", "-encoders"], capture_output=True, text=True,
+                          errors="replace", **_no_window())
+    nomes = set()
+    for linha in proc.stdout.splitlines():
+        partes = linha.split()
+        if len(partes) >= 2 and len(partes[0]) == 6 and partes[0] != "------":
+            nomes.add(partes[1])
+    return frozenset(nomes)
+
+
+def tem_codificador(nome: str) -> bool:
+    exe = ffmpeg_path()
+    return bool(exe) and nome in _codificadores(exe)
+
+
+# O ffmpeg do Homebrew (Mac) deixou de trazer o libvorbis. O codificador
+# Vorbis interno do ffmpeg existe em toda compilação, mas é experimental
+# (exige -strict -2) e só aceita 2 canais — conferido rodando o ffmpeg.
+OGG_INTERNO = ["-c:a", "vorbis", "-strict", "-2", "-ac", "2", "-q:a", "5"]
+AVISO_OGG_INTERNO = (
+    "Este ffmpeg não tem o codificador libvorbis; o OGG foi gerado com o codificador "
+    "Vorbis interno (experimental, qualidade um pouco menor) e em estéreo — áudio com "
+    "mais de 2 canais foi mixado para 2. Para a melhor qualidade, instale um ffmpeg "
+    "com libvorbis (no Mac: brew install ffmpeg-full)."
+)
+
+
 def _run(src: Path, dst: Path, args: list[str]) -> None:
     exe = ffmpeg_path()
     if not exe:
@@ -72,7 +102,12 @@ def _run(src: Path, dst: Path, args: list[str]) -> None:
 
 @register(AUDIO + VIDEO, AUDIO, category="Áudio", notes=NOTES, available=has_ffmpeg)
 def to_audio(src: Path, dst: Path, options: dict) -> None:
-    _run(src, dst, ["-vn", *AUDIO_CODEC[dst.suffix.lstrip(".")]])
+    alvo = dst.suffix.lstrip(".")
+    codec = AUDIO_CODEC[alvo]
+    if alvo == "ogg" and not tem_codificador("libvorbis"):
+        codec = OGG_INTERNO
+        options.setdefault("_warnings", []).append(AVISO_OGG_INTERNO)
+    _run(src, dst, ["-vn", *codec])
 
 
 @register(VIDEO, VIDEO, category="Vídeo", notes=NOTES, available=has_ffmpeg)

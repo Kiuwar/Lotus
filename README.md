@@ -167,6 +167,11 @@ indisponíveis (o restante funciona). Para ativar, faça **uma** das opções:
    `Lotus.exe`;
 3. defina a variável `CONVERSOR_FFMPEG` com o caminho do `ffmpeg.exe`.
 
+No Mac: `brew install ffmpeg` (Homebrew). Esse pacote não traz mais o
+codificador libvorbis; o Lotus então gera OGG com o codificador Vorbis
+interno do ffmpeg (estéreo, qualidade um pouco menor) e avisa. Para a
+melhor qualidade em OGG: `brew install ffmpeg-full`.
+
 ## Privacidade (LGPD)
 
 O processamento é 100% local: o aplicativo não faz conexões de rede, não

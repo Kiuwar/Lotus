@@ -207,6 +207,34 @@ def test_video_to_audio_has_duration(sample, tmp_path):
     assert 0.5 < float(dur) < 2.0
 
 
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+def test_encoder_list_is_read_from_installed_ffmpeg():
+    assert media.tem_codificador("flac") and media.tem_codificador("pcm_s16le")
+    assert not media.tem_codificador("nao-existe")
+
+
+@pytest.mark.skipif(not HAS_FFMPEG, reason="ffmpeg não instalado")
+@pytest.mark.parametrize("canais", [1, 6])
+def test_ogg_without_libvorbis_uses_internal_encoder_and_warns(tmp_path, monkeypatch, canais):
+    """ffmpeg do Homebrew sem libvorbis: OGG sai com o Vorbis interno, em estéreo, com aviso."""
+    import subprocess
+
+    src = tmp_path / f"tom{canais}.wav"
+    subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-f", "lavfi",
+                    "-i", "sine=frequency=440:duration=1", "-ac", str(canais), str(src)], check=True)
+    real = media.tem_codificador
+    monkeypatch.setattr(media, "tem_codificador", lambda n: n != "libvorbis" and real(n))
+
+    r = convert_file(src, "ogg", out_dir=tmp_path)
+    info = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "stream=codec_name,channels:format=duration",
+         "-of", "csv=p=0", str(r.output)], capture_output=True, text=True, check=True,
+    ).stdout.split()
+    assert info[0] == "vorbis,2"
+    assert 0.5 < float(info[1]) < 2.0
+    assert any("libvorbis" in w for w in r.warnings)
+
+
 @pytest.mark.parametrize(
     "text,expected",
     [
