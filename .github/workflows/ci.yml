@@ -208,8 +208,12 @@ jobs:
         continue-on-error: true
         timeout-minutes: 15
         run: brew install ffmpeg
+      - name: Diagnóstico do Tk no Mac (qual passo do painel trava)
+        continue-on-error: true
+        timeout-minutes: 8
+        run: python scripts/diagnostico_tk_mac.py
       - name: Testes (Mac)
-        timeout-minutes: 15
+        timeout-minutes: 10
         run: python -m pytest -v -rs
       - name: Captura de tela do app no Mac (diagnóstico)
         continue-on-error: true
