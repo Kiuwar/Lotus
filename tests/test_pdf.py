@@ -98,7 +98,7 @@ def test_scanned_pdf_without_text_fails_clearly(tmp_path):
     src = tmp_path / "escaneado.pdf"
     pdf.output(str(src))
     out = tmp_path / "o"
-    with pytest.raises(ConversionError, match="escaneado"):
+    with pytest.raises(ConversionError, match="escaneado|nem por OCR"):
         convert_file(src, "txt", out_dir=out)
     assert not list(out.iterdir())
 

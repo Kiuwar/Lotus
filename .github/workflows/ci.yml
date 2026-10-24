@@ -121,6 +121,11 @@ jobs:
           & $exe doc.md --para docx --saida saida_doc
           & $exe saida_doc/doc.docx --para pdf --saida saida_doc2
           if (!(Test-Path saida_doc2/doc.pdf)) { throw "MD -> DOCX -> PDF falhou no executável" }
+          # PDF escaneado (só imagem) -> TXT pelo OCR do Windows, no programa empacotado.
+          python -c "from pathlib import Path; from tests.test_ocr import pdf_escaneado; pdf_escaneado(Path('escaneado.pdf'), ['LOTUS CONVERTE ARQUIVOS\nCODIGO 2026'])"
+          & $exe escaneado.pdf --para txt --saida saida_ocr
+          Get-Content saida_ocr/escaneado.txt -ErrorAction SilentlyContinue
+          if (!(Select-String -Path saida_ocr/escaneado.txt -Pattern "LOTUS" -Quiet)) { throw "OCR do PDF escaneado falhou no executável" }
 
       - name: Teste do menu do botão direito (registro real do Windows)
         shell: pwsh
@@ -328,6 +333,10 @@ jobs:
           test -f saida_doc2/doc.pdf
           printf '{\\rtf1\\ansi Peti\\'"'"'e7\\'"'"'e3o\\par}' > doc.rtf
           $CLI doc.rtf --para docx --saida saida_rtf && test -f saida_rtf/doc.docx
+          # PDF escaneado (só imagem) -> TXT pelo OCR do macOS (Vision), no app empacotado.
+          python -c "from pathlib import Path; from tests.test_ocr import pdf_escaneado; pdf_escaneado(Path('escaneado.pdf'), ['LOTUS CONVERTE ARQUIVOS\nCODIGO 2026'])"
+          $CLI escaneado.pdf --para txt --saida saida_ocr; cat saida_ocr/escaneado.txt
+          grep -qi "lotus" saida_ocr/escaneado.txt
           # Diagnóstico do painel pelo app empacotado (AXIsProcessTrusted via ctypes, codesign).
           $CLI --diagnostico-mac | tee diagnostico.txt
           grep -q "Diagnóstico do painel no Mac" diagnostico.txt

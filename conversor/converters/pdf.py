@@ -2,8 +2,10 @@
 
 - PDF → PNG/JPG: uma imagem por página, renderizada pelo PDFium (pypdfium2,
   o mesmo motor de PDF do Chrome). Fiel ao original.
-- PDF → TXT: texto extraído com pypdf. PDF escaneado (só imagem) não tem
-  texto: a conversão falha com explicação, em vez de gerar um .txt vazio.
+- PDF → TXT: texto extraído com pypdf. Páginas escaneadas (só imagem) passam
+  pelo OCR do próprio sistema (conversor/ocr.py: Windows 10/11 e Mac), com
+  aviso. Sem OCR e sem texto, a conversão falha explicando, em vez de gerar
+  um .txt vazio.
 """
 
 from __future__ import annotations
@@ -54,30 +56,63 @@ def pdf_para_imagens(src: Path, pasta: Path, options: dict) -> None:
         doc.close()
 
 
+OCR_DPI = 300  # resolução usada só para reconhecer texto (escaneados costumam ter 200–300)
+
+
+def _ocr_paginas(src: Path, numeros: list[int], options: dict) -> dict[int, str]:
+    """Texto por OCR das páginas indicadas (base 1). {} se não houver OCR."""
+    from conversor import ocr
+
+    if not ocr.disponivel():
+        return {}
+    doc = _abrir_pdfium(src)
+    textos: dict[int, str] = {}
+    aviso_idioma = None
+    try:
+        for n in numeros:
+            pagina = doc[n - 1]
+            try:
+                img = pagina.render(scale=OCR_DPI / 72).to_pil()
+            finally:
+                pagina.close()
+            texto, aviso_idioma = ocr.reconhecer(img)
+            textos[n] = texto.strip()
+    finally:
+        doc.close()
+    if aviso_idioma:
+        options.setdefault("_warnings", []).append(aviso_idioma)
+    return textos
+
+
 @register(["pdf"], ["txt"], category="PDF",
-          notes="Só o texto (sem layout). PDF escaneado não tem texto e não há OCR.")
+          notes="Texto do PDF; páginas escaneadas passam por OCR (Windows 10/11 e Mac).")
 def pdf_para_txt(src: Path, dst: Path, options: dict) -> None:
     from pypdf import PdfReader
+
+    from conversor import ocr
 
     leitor = PdfReader(str(src))
     if leitor.is_encrypted and not leitor.decrypt(""):
         # decrypt("") resolve PDFs que só têm senha de "dono" (proteção contra edição).
         raise ConversionError(SENHA.format(nome=src.name))
-    partes = []
-    com_texto = 0
-    for n, pagina in enumerate(leitor.pages, start=1):
-        texto = (pagina.extract_text() or "").strip()
-        if texto:
-            com_texto += 1
-        partes.append(f"--- Página {n} ---\n{texto}")
-    if com_texto == 0:
-        raise ConversionError(
-            f"{src.name} não tem texto selecionável (provavelmente é escaneado). "
-            "O Lotus ainda não faz OCR; converta para PNG/JPG para ver as páginas."
-        )
-    sem = len(leitor.pages) - com_texto
-    if sem:
-        options.setdefault("_warnings", []).append(
-            f"{src.name}: {sem} página(s) sem texto selecionável (imagem/escaneada) ficaram vazias."
-        )
+    textos = [(pagina.extract_text() or "").strip() for pagina in leitor.pages]
+    sem_texto = [n for n, t in enumerate(textos, start=1) if not t]
+    lidas = _ocr_paginas(src, sem_texto, options) if sem_texto else {}
+    for n, t in lidas.items():
+        textos[n - 1] = t
+    avisos = options.setdefault("_warnings", [])
+    if lidas:
+        avisos.append(f"{src.name}: {len(lidas)} página(s) escaneada(s) lida(s) por OCR (reconhecimento "
+                      "de texto). Confira nomes, números e acentos: o OCR pode errar.")
+    if not any(textos):
+        if sem_texto and not lidas:
+            raise ConversionError(
+                f"{src.name} não tem texto selecionável (provavelmente é escaneado) e {ocr.motivo()}. "
+                "Converta para PNG/JPG para ver as páginas.")
+        raise ConversionError(f"{src.name}: nenhum texto foi encontrado, nem por OCR "
+                              "(páginas em branco ou imagem ilegível).")
+    vazias = [n for n, t in enumerate(textos, start=1) if not t]
+    if vazias:
+        avisos.append(f"{src.name}: {len(vazias)} página(s) sem texto (em branco ou ilegíveis) ficaram vazias.")
+    partes = [f"--- Página {n} ---\n{t}" for n, t in enumerate(textos, start=1)]
     dst.write_text("\n\n".join(partes) + "\n", encoding="utf-8")

@@ -76,7 +76,7 @@ Observação: Uma página por imagem.
 |---|---|
 | PDF | JPG, PNG, TXT |
 
-Observação: Só o texto (sem layout). PDF escaneado não tem texto e não há OCR.
+Observação: Texto do PDF; páginas escaneadas passam por OCR (Windows 10/11 e Mac).
 
 Observação: Uma imagem por página (150 DPI); várias páginas vão para uma pasta.
 

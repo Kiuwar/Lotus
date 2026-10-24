@@ -82,6 +82,9 @@ def secoes(sistema: str | None = None) -> list[tuple[str, list[tuple[str, str]]]
         ("passo", "Ferramentas → Abrir pasta do log: o arquivo lotus.log tem os detalhes técnicos."),
         ("passo", "\"Indisponível: requer …\" ao lado de um arquivo: falta o programa indicado "
                   "(Word, PowerPoint, ffmpeg)."),
+        ("passo", "PDF escaneado → TXT: o Lotus lê as páginas por OCR (reconhecimento de texto do "
+                  "próprio sistema, sem internet). Confira o resultado: o OCR pode errar acentos e "
+                  "números."),
     ]
     if mac:
         problemas += [

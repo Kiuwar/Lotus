@@ -16,9 +16,19 @@ defusedxml==0.7.1
 pi-heif==1.4.0
 # Só no Windows: leitura da seleção do Explorer (painel flutuante). Licença PSF.
 pywin32==312; sys_platform == "win32"
+# Só no Windows: OCR do próprio Windows (Windows.Media.Ocr) para PDF escaneado → TXT.
+# 3.2.1 (jun/2025), MIT; a 4.x saiu em 2026-10-24 e ainda é nova demais. PyPI, 2026-10-24.
+winrt-runtime==3.2.1; sys_platform == "win32"
+winrt-Windows.Foundation==3.2.1; sys_platform == "win32"
+winrt-Windows.Foundation.Collections==3.2.1; sys_platform == "win32"
+winrt-Windows.Globalization==3.2.1; sys_platform == "win32"
+winrt-Windows.Graphics.Imaging==3.2.1; sys_platform == "win32"
+winrt-Windows.Media.Ocr==3.2.1; sys_platform == "win32"
 # Só no Mac: certificados para a conexão HTTPS de "Procurar atualização" (o Python
 # empacotado não enxerga os do sistema). Verificado no PyPI em 2026-10-24. MPL-2.0.
 certifi==2026.10.23; sys_platform == "darwin"
 # Só no Mac: gancho de mouse (Quartz Event Tap) e AppKit. Licença MIT (PyPI, 2026-10-24).
 pyobjc-framework-Quartz==12.2.2; sys_platform == "darwin"
 pyobjc-framework-Cocoa==12.2.2; sys_platform == "darwin"
+# Só no Mac: OCR do próprio macOS (framework Vision). MIT (PyPI, 2026-10-24).
+pyobjc-framework-Vision==12.2.2; sys_platform == "darwin"

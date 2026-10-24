@@ -20,7 +20,8 @@ Todas as versões, com o SHA-256 de cada arquivo:
 - **Imagens:** PNG, JPG, WEBP, BMP, GIF, TIFF, ICO e AVIF (entre si e para PDF)
 - **Fotos do iPhone (HEIC/HEIF):** para JPG, PNG, PDF e as outras imagens
   (só leitura: o Lotus não grava HEIC)
-- **PDF:** para imagens (PNG/JPG, uma por página) e para texto (TXT)
+- **PDF:** para imagens (PNG/JPG, uma por página) e para texto (TXT), inclusive
+  escaneado, por OCR offline no Windows e no Mac
 - **Word, sem precisar do Word:** DOCX → TXT, Markdown e HTML (títulos,
   listas, tabelas e links); TXT, Markdown e HTML → DOCX (com os estilos de
   título do Word); DOCX → PDF simples (texto, títulos, listas e tabelas — o
@@ -191,8 +192,13 @@ conversor-cli.exe --listar
 
 - **PDF → PNG/JPG:** PDF de 1 página vira um arquivo; com várias páginas, o
   Lotus cria a pasta `<nome> - páginas PNG` com `pagina_001.png`, `pagina_002.png`…
-- **PDF → TXT:** só funciona com PDF que tem texto selecionável. PDF escaneado
-  (foto de papel) não tem texto e o Lotus avisa — ainda não há OCR.
+- **PDF → TXT:** o texto do PDF é copiado como está. Páginas **escaneadas**
+  (só imagem) são lidas por **OCR** — o reconhecimento de texto que já vem
+  no **Windows 10/11** e no **Mac**, sem internet. O Lotus avisa quais
+  páginas foram lidas assim: confira nomes, números e acentos, porque o OCR
+  pode errar (e piora com escaneamento torto, borrado ou manuscrito). No
+  Windows, o português precisa estar instalado em *Configurações → Hora e
+  idioma → Idioma*; sem ele o Lotus usa o idioma do Windows e avisa.
 - **PDF com senha:** não é convertido; o Lotus explica como gerar uma cópia sem senha.
 - **Word:** DOCX → PDF e PDF → DOCX usam o Microsoft Word do seu computador
   (sem Word, essas opções aparecem como indisponíveis). No PDF → DOCX o
