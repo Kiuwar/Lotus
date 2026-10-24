@@ -32,7 +32,7 @@ root.after(700, lambda: Painel(root, arquivos[:1], 1100, 400))
 
 
 def tirar():
-    root.update()
+    root.update_idletasks()  # update() pode não esvaziar a fila no Mac (ver tests/conftest.py)
     subprocess.run(["screencapture", "-x", str(destino)], check=False)
     root.destroy()
 

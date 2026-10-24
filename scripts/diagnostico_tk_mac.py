@@ -95,6 +95,43 @@ while not p.fechado and time.time() < fim:
     root.update(); time.sleep(0.03)
 print("fechado:", p.fechado, "estados:", p.estados)
 """,
+    "10 CPU do app parado no mainloop (3 s)": """
+sys.path.insert(0, %(raiz)r)
+from conversor.gui import App
+from tests.conftest import make_sample
+import tempfile, pathlib
+root.deiconify()
+app = App(root)
+app.add_files([str(make_sample("png", pathlib.Path(tempfile.mkdtemp())))])
+root.after(3000, root.quit)
+t0 = time.process_time(); r0 = time.time()
+root.mainloop()
+cpu, real = time.process_time() - t0, time.time() - r0
+print(f"CPU {cpu:.2f} s em {real:.2f} s ({100 * cpu / real:.0f}%) -> "
+      + ("GIRANDO (bug real)" if cpu / real > 0.5 else "ocioso (normal)"))
+""",
+    "11 eventos que um update() processa após converter": """
+sys.path.insert(0, %(raiz)r)
+import _tkinter
+from conversor.gui import App
+from tests.conftest import make_sample
+import tempfile, pathlib
+app = App(root)
+src = make_sample("png", pathlib.Path(tempfile.mkdtemp()))
+app.add_files([str(src)]); app.target.set("JPG"); app.start()
+fim = time.time() + 15
+while (app.worker.is_alive() or not app.events.empty()) and time.time() < fim:
+    root.update_idletasks()
+    for _ in range(500):
+        if not root.tk.dooneevent(_tkinter.ALL_EVENTS | _tkinter.DONT_WAIT):
+            break
+    time.sleep(0.05)
+n, t0 = 0, time.time()
+while root.tk.dooneevent(_tkinter.ALL_EVENTS | _tkinter.DONT_WAIT) and n < 200000:
+    n += 1
+print(f"um update() processaria {n} eventos em {time.time() - t0:.2f} s"
+      + (" (NUNCA ESVAZIA)" if n >= 200000 else ""))
+""",
 }
 
 

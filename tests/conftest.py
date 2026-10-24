@@ -250,3 +250,22 @@ def _vigia_travamento_mac(request):
     threading.Thread(target=vigiar, name="vigia-travamento", daemon=True).start()
     yield
     feito.set()
+
+
+# ---------- update() limitado nos testes do Mac ----------
+# A pilha nativa (sample) do CI do Mac mostrou o comando `update` do Tk
+# chamando Tcl_DoOneEvent sem fim: o notificador Cocoa do Tcl sempre tem
+# mais um evento pronto, então "processar até a fila esvaziar" nunca acaba.
+# O app não usa update() (só mainloop, que não precisa da fila vazia);
+# nos testes, update() vira: tarefas ociosas + até 2000 eventos prontos.
+if _tk is not None and sys.platform == "darwin":
+    import _tkinter
+
+    def _update_limitado(self):
+        self.update_idletasks()
+        for _ in range(2000):
+            if not self.tk.dooneevent(_tkinter.ALL_EVENTS | _tkinter.DONT_WAIT):
+                break
+        self.update_idletasks()
+
+    _tk.Misc.update = _update_limitado
