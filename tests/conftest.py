@@ -11,6 +11,7 @@ import os
 import shutil
 import tempfile
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -131,3 +132,37 @@ def sample(tmp_path):
         return make_sample(fmt, d)
 
     return _make
+
+
+_DIALOGOS = {
+    "messagebox": [("showinfo", "ok"), ("showwarning", "ok"), ("showerror", "ok"),
+                   ("askyesno", False), ("askokcancel", False), ("askyesnocancel", None),
+                   ("askquestion", "no"), ("askretrycancel", False)],
+    "colorchooser": [("askcolor", (None, None))],
+    "filedialog": [("askopenfilenames", ""), ("askopenfilename", ""), ("askdirectory", ""),
+                   ("asksaveasfilename", "")],
+}
+
+
+@pytest.fixture(autouse=True)
+def _sem_dialogos_reais(monkeypatch):
+    """Uma caixa de diálogo real trava o teste até alguém clicar (no Mac é um
+    alerta nativo modal: o CI ficou parado 14 min). Aqui o diálogo só é
+    registrado no stderr do teste. Testes que conferem um diálogo fazem o
+    próprio monkeypatch por cima deste."""
+    try:
+        import importlib
+
+        modulos = {n: importlib.import_module(f"tkinter.{n}") for n in _DIALOGOS}
+    except ImportError:
+        return
+
+    def falso(nome, resposta):
+        def f(*args, **kwargs):
+            print(f"[diálogo {nome}] {args} {kwargs.get('message', '')}", file=sys.stderr)
+            return resposta
+        return f
+
+    for mod, funcs in _DIALOGOS.items():
+        for nome, resposta in funcs:
+            monkeypatch.setattr(modulos[mod], nome, falso(nome, resposta))

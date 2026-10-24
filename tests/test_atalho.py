@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gc
 import json
+import sys
 
 import pytest
 
@@ -13,10 +14,14 @@ from conversor.atalho.config import Gatilho
 from .fake_winreg import FakeWinreg
 
 CTRL_SHIFT = frozenset({"ctrl", "shift"})
+# Testes do gesto do Windows usam Ctrl+Shift explícito: no Mac o padrão é
+# ⌥ Option+⇧ Shift (conferido em test_mac.py).
+WINDOWS_PADRAO = Gatilho(CTRL_SHIFT, "mouse", "esquerdo")
 
 
 # ---------- configuração ----------
 
+@pytest.mark.skipif(sys.platform == "darwin", reason="padrão do Mac: test_mac.py")
 def test_default_is_ctrl_shift_left_click():
     assert config.PADRAO.descrever() == "Ctrl+Shift+clique esquerdo"
     assert config.validar(config.PADRAO) == ([], [])
@@ -93,7 +98,7 @@ def test_corrupt_or_dangerous_config_is_repaired(tmp_path, conteudo):
 
 # ---------- detecção do gesto ----------
 
-def _det(g=config.PADRAO):
+def _det(g=WINDOWS_PADRAO):
     return gesto.Detector(g)
 
 

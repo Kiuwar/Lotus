@@ -14,6 +14,8 @@ from conversor import acao_rapida
 from conversor.atalho import mac
 
 so_mac = pytest.mark.skipif(sys.platform != "darwin", reason="só no macOS")
+# fcntl e caminhos com "/" só existem em sistemas Unix (Mac e Linux).
+so_unix = pytest.mark.skipif(sys.platform == "win32", reason="só em sistemas Unix")
 
 
 # ---------- lógica pura ----------
@@ -57,6 +59,7 @@ def test_finder_permission_error_explains_fix():
         mac.ler_selecao_finder(lambda *a, **k: _R(1, err="execution error: Not authorized (-1743)"))
 
 
+@so_unix
 def test_single_instance_lock_and_stop_signal():
     t1 = mac.travar_instancia()
     assert t1 is not None
@@ -127,6 +130,7 @@ def test_quick_action_install_uninstall(tmp_path, monkeypatch):
     assert not acao_rapida.desinstalar()
 
 
+@so_unix
 def test_default_command_quotes_paths_with_spaces(monkeypatch, tmp_path):
     app = tmp_path / "Meus Apps" / "Lotus.app" / "Contents" / "MacOS"
     app.mkdir(parents=True)

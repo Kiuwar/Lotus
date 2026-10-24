@@ -33,3 +33,5 @@ include = ["conversor*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Teste parado há 2 min → o pytest imprime onde cada thread está (sem matar).
+faulthandler_timeout = 120
