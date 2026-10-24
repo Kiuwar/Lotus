@@ -74,6 +74,9 @@ python -m conversor --listar
    planilhas extras, encoding) gera aviso em `options["_warnings"]`.
 8. **Sem rede.** O app não faz requisições, não tem telemetria. Qualquer
    mudança nisso exige revisão de privacidade (LGPD) e aviso ao usuário.
+   Única exceção aprovada (0.8): `conversor/atualizar.py`, só quando a pessoa
+   pede (menu ou "Sim" no lembrete mensal, que não acessa a rede), só para
+   hosts do GitHub em HTTPS, sem enviar dado algum, e com SHA-256 conferido.
 9. **Separe fato de suposição** ao responder: o que foi testado aqui (Linux),
    o que só o CI no Windows confirma, e o que é opinião.
 10. Mensagens ao usuário em português do Brasil.

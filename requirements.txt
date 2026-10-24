@@ -16,6 +16,9 @@ defusedxml==0.7.1
 pi-heif==1.4.0
 # Só no Windows: leitura da seleção do Explorer (painel flutuante). Licença PSF.
 pywin32==312; sys_platform == "win32"
+# Só no Mac: certificados para a conexão HTTPS de "Procurar atualização" (o Python
+# empacotado não enxerga os do sistema). Verificado no PyPI em 2026-10-24. MPL-2.0.
+certifi==2026.10.23; sys_platform == "darwin"
 # Só no Mac: gancho de mouse (Quartz Event Tap) e AppKit. Licença MIT (PyPI, 2026-10-24).
 pyobjc-framework-Quartz==12.2.2; sys_platform == "darwin"
 pyobjc-framework-Cocoa==12.2.2; sys_platform == "darwin"

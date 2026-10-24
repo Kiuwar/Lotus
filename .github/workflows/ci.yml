@@ -184,6 +184,27 @@ jobs:
           & "$app\conversor-cli.exe" t.png --para webp --saida instalado
           if (!(Test-Path instalado/t.webp)) { throw "conversão pelo programa instalado falhou" }
 
+          # Atualização por cima, como o "Procurar atualização" do app faz: as escolhas
+          # feitas depois no app (painel desligado, aparência) não podem ser desfeitas.
+          $d = Start-Process "$app\Lotus.exe" -PassThru -ArgumentList '--desativar-atalho','--silencioso'
+          [void]$d.WaitForExit(60000)
+          Set-Content "$env:APPDATA\Lotus\aparencia.json" '{"tema": "Grafite", "forma": "cartao"}'
+          $cfgAntes = Get-Content "$env:APPDATA\Lotus\config.json" -Raw
+          $apAntes = Get-Content "$env:APPDATA\Lotus\aparencia.json" -Raw
+          $p = Start-Process dist/LotusSetup.exe -PassThru -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/atualizacao=1','/LOG=update.log'
+          if (!$p.WaitForExit(180000)) { Get-Content update.log -Tail 40; throw "atualização não terminou em 3 minutos" }
+          if ($p.ExitCode -ne 0) { Get-Content update.log -Tail 40; throw "atualização saiu com $($p.ExitCode)" }
+          if ((Get-Content "$env:APPDATA\Lotus\config.json" -Raw) -ne $cfgAntes) { Get-Content "$env:APPDATA\Lotus\config.json"; throw "a atualização mudou a configuração" }
+          if ((Get-Content "$env:APPDATA\Lotus\aparencia.json" -Raw) -ne $apAntes) { throw "a atualização mudou a aparência" }
+          if ((Get-Content "$env:APPDATA\Lotus\config.json" -Raw) -notmatch '"atalho_ativo": false') { throw "painel religado pela atualização" }
+          if (!(Select-String -Path update.log -Pattern "pos-atualizacao" -Quiet)) { throw "pós-atualização não rodou" }
+          # Painel e ícone desligados = nenhum agente; um processo Lotus agora é a janela reaberta.
+          $fim = (Get-Date).AddSeconds(30)
+          while (!(Get-Process Lotus -ErrorAction SilentlyContinue) -and (Get-Date) -lt $fim) { Start-Sleep -Milliseconds 500 }
+          if (!(Get-Process Lotus -ErrorAction SilentlyContinue)) { Get-Content update.log -Tail 20; throw "o Lotus não reabriu depois de atualizar" }
+          Get-Process Lotus -ErrorAction SilentlyContinue | Stop-Process -Force
+          Write-Host "Atualização por cima: OK (configurações mantidas, Lotus reaberto)"
+
           $u = Start-Process "$app\unins000.exe" -PassThru -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART'
           [void]$u.WaitForExit(120000)
           $fim = (Get-Date).AddSeconds(60)
@@ -332,6 +353,30 @@ jobs:
           /tmp/lotusdmg/Lotus.app/Contents/MacOS/conversor-cli --listar | head -3
           hdiutil detach /tmp/lotusdmg
 
+      - name: Teste da atualização no Mac (troca do Lotus.app a partir do .dmg)
+        run: |
+          # Um "Aplicativos" de teste com um Lotus antigo; o .dmg recém-gerado faz o papel da versão nova.
+          mkdir -p /tmp/apps/Lotus.app/Contents && echo velha > /tmp/apps/Lotus.app/Contents/marca
+          python - <<'PY'
+          import os, subprocess, sys
+          from pathlib import Path
+          from conversor import atualizar
+          dmg = Path(os.environ["DMG"])
+          atual = Path("/tmp/apps/Lotus.app")
+          novo = atualizar.preparar_mac(dmg, atual)
+          assert (novo / "Contents/MacOS/Lotus").is_file(), novo
+          sair = subprocess.Popen([sys.executable, "-c", "pass"]); sair.wait()
+          script = Path("/tmp/apps/concluir.sh")
+          script.write_text(atualizar.script_mac(sair.pid, atual, novo, reabrir="true"))
+          subprocess.run(["/bin/sh", str(script)], check=True, timeout=60)
+          assert not (atual / "Contents/marca").exists(), "o app antigo continua lá"
+          assert (atual / "Contents/MacOS/Lotus").is_file() and not novo.exists()
+          print("Atualização no Mac: OK")
+          PY
+          /tmp/apps/Lotus.app/Contents/MacOS/conversor-cli --listar | head -2
+        env:
+          DMG: dist/Lotus-Mac-${{ matrix.arq }}.dmg
+
       - uses: actions/upload-artifact@v4
         with:
           name: Lotus-Mac-${{ matrix.arq }}
@@ -358,10 +403,13 @@ jobs:
           ARQS="pacotes/LotusSetup/LotusSetup.exe pacotes/Lotus-Mac-AppleSilicon/Lotus-Mac-AppleSilicon.dmg pacotes/Lotus-Mac-Intel/Lotus-Mac-Intel.dmg"
           for f in $ARQS; do test -f "$f" || { echo "faltando: $f"; exit 1; }; done
           SHAS=$(cd pacotes && sha256sum */*.exe */*.dmg | sed 's|^|    |')
+          # Conferido pelo "Procurar atualização" do app antes de instalar.
+          (cd pacotes && sha256sum */*.exe */*.dmg | sed 's|  [^/]*/|  |') > SHA256SUMS.txt
+          cat SHA256SUMS.txt
           NOTAS=$(printf 'Lotus %s.\n\n- Windows: LotusSetup.exe (por usuário, sem administrador).\n- Mac Apple Silicon (M1/M2/M3/M4): Lotus-Mac-AppleSilicon.dmg\n- Mac Intel: Lotus-Mac-Intel.dmg\n\nSem assinatura paga: no Windows, SmartScreen → Mais informações → Executar assim mesmo. No Mac, na 1ª abertura: Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim.\n\nSHA-256:\n%s\n' "$VER" "$SHAS")
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" $ARQS --clobber
+            gh release upload "$TAG" $ARQS SHA256SUMS.txt --clobber
           else
-            gh release create "$TAG" $ARQS --target "$GITHUB_SHA" --title "Lotus $VER" --notes "$NOTAS"
+            gh release create "$TAG" $ARQS SHA256SUMS.txt --target "$GITHUB_SHA" --title "Lotus $VER" --notes "$NOTAS"
           fi
           echo "Release publicada: $TAG"

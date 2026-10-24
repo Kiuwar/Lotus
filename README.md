@@ -241,10 +241,30 @@ codificador libvorbis; o Lotus então gera OGG com o codificador Vorbis
 interno do ffmpeg (estéreo, qualidade um pouco menor) e avisa. Para a
 melhor qualidade em OGG: `brew install ffmpeg-full`.
 
+## Atualizar
+
+*Ferramentas → Procurar atualização…*: o Lotus mostra se há versão nova e o
+que mudou; **Baixar e instalar** baixa o instalador do seu sistema, confere o
+código SHA-256 publicado (se não bater, apaga e não instala) e pede para
+**Reiniciar agora**. Ele fecha, instala por cima — sem desinstalar — e abre
+de novo. Suas configurações (painel, atalho, aparência, menu) ficam como
+estavam. Uma vez por mês o Lotus só **pergunta** se você quer procurar.
+
+No Mac, como o Lotus não tem assinatura paga da Apple, depois de atualizar o
+macOS pode pedir de novo a permissão de Acessibilidade (a janela *Ativar o
+painel no Mac* mostra como).
+
 ## Privacidade (LGPD)
 
-O processamento é 100% local: o aplicativo não faz conexões de rede, não
+O processamento é 100% local: as conversões não usam a internet, o Lotus não
 coleta dados e não tem telemetria. Os arquivos não saem do computador.
+
+**Única exceção, só quando você pede: "Procurar atualização".** Ao clicar
+(ou responder "Sim" ao lembrete mensal, que apenas pergunta), o Lotus
+consulta a página de versões do projeto no GitHub e, se você aceitar, baixa
+o instalador. Nenhum arquivo ou dado seu é enviado; o GitHub (Microsoft)
+recebe apenas o seu endereço IP e a identificação "Lotus/versão", como em
+qualquer acesso a um site. Sem o seu clique, o Lotus não acessa a internet.
 
 O painel flutuante usa um "gancho de mouse" do Windows para perceber o
 atalho. Ele só olha botões do mouse e o estado de Ctrl/Shift/Alt/Win no

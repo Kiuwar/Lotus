@@ -8,6 +8,7 @@
     Lotus.exe --remover-menu           remove o menu
     Lotus.exe --reparar                diagnostica e repara
     Lotus --diagnostico-mac            por que o painel não abre no Mac (só mostra)
+    Lotus.exe --pos-atualizacao        usado pelo instalador ao atualizar (mantém as escolhas)
 
 Nenhum erro é engolido: falhas inesperadas vão para o log e aparecem numa
 caixa de mensagem (o .exe com janela não tem console para mostrar erros).
@@ -149,6 +150,19 @@ def dispatch(argv: list[str]) -> int:
             return 0
         n = shell.uninstall()
         _show(f"Lotus removido do sistema (menu em {n} tipos de arquivo, atalho e início automático).")
+        return 0
+
+    if argv and argv[0] == "--pos-atualizacao":
+        # Chamado pelo instalador numa atualização: não muda nenhuma escolha do
+        # usuário; só atualiza caminhos e religa o que já estava ligado.
+        from conversor.atalho import config, controle
+
+        _auto_repair_menu()
+        cfg = config.carregar()
+        if controle.precisa_rodar(cfg):
+            controle.ativar_inicio()
+            controle.iniciar_agente()
+        get_logger().info("pós-atualização concluída (versão nova em uso)")
         return 0
 
     if argv and argv[0] == "--diagnostico-mac":

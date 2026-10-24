@@ -195,6 +195,9 @@ class App(ttk.Frame):
             tools.add_command(label="Ativar o painel no Mac…", command=self.ativar_painel_mac)
             tools.add_command(label="Diagnóstico do painel flutuante (Mac)…", command=self.diagnose_mac)
         tools.add_command(label="Abrir pasta do log", command=self.open_log_dir)
+        tools.add_separator()
+        tools.add_command(label="Procurar atualização…", command=self.procurar_atualizacao,
+                          state="normal" if sys.platform in ("win32", "darwin") else "disabled")
         self.tools_menu = tools
         if self.moldura is not None and self.moldura.propria:
             self.moldura.definir_menu(tools)  # botão "Ferramentas ▾" da barra de título
@@ -289,6 +292,18 @@ class App(ttk.Frame):
             return janela
         self._guia = janela_ativacao.abrir(self.winfo_toplevel(), ao_fechar=ao_fechar)
         return self._guia
+
+    def procurar_atualizacao(self, ja_autorizado: bool = False):
+        from conversor.ui import janela_atualizacao
+
+        janela = getattr(self, "_atualizacao", None)
+        if janela is not None and not janela.fechado:
+            janela.lift()
+            return janela
+        topo = self.winfo_toplevel()
+        self._atualizacao = janela_atualizacao.abrir(topo, ao_reiniciar=topo.destroy,
+                                                     ja_autorizado=ja_autorizado)
+        return self._atualizacao
 
     def diagnose_mac(self) -> None:
         """Roda em thread (o osascript pode esperar a pergunta de permissão do
@@ -424,6 +439,28 @@ class App(ttk.Frame):
         self.log.configure(state="disabled")
 
 
+def _lembrete_mensal(root: tk.Tk, app: App) -> None:
+    """Uma vez por mês só PERGUNTA se a pessoa quer procurar atualização; a
+    internet só é usada se ela disser sim."""
+    from conversor import atualizar
+
+    try:
+        if not atualizar.deve_lembrar():
+            return
+    except Exception:  # noqa: BLE001 - o lembrete nunca impede o app de abrir
+        get_logger().exception("lembrete de atualização")
+        return
+    sim = messagebox.askyesno(
+        "Lotus — atualizações",
+        "Já faz um mês. Quer procurar uma versão nova do Lotus agora?\n\n"
+        "Para isso o Lotus acessa o GitHub (github.com); nenhum dado seu é enviado. "
+        "Você também pode procurar quando quiser em Ferramentas → Procurar atualização.",
+        parent=root)
+    atualizar.lembrete_respondido()
+    if sim:
+        app.procurar_atualizacao(ja_autorizado=True)
+
+
 def _guia_na_primeira_vez(root: tk.Tk, app: App) -> None:
     """Mac: na 1ª abertura, a janela "Ativar o painel" (o painel vem desligado)."""
     from conversor.atalho import config
@@ -499,6 +536,8 @@ def main(argv: list[str] | None = None) -> int:
     app = App(moldura.conteudo, pal=pal, moldura=moldura)
     if files:  # "Abrir com" / arrastar arquivos sobre o .exe
         app.add_files(files)
+    if sys.platform in ("win32", "darwin"):
+        root.after(1500, lambda: _lembrete_mensal(root, app))
     if sys.platform == "darwin":
         # No Mac, arquivos enviados pelo Finder chegam como evento do Tk.
         root.createcommand("::tk::mac::OpenDocument", lambda *caminhos: app.add_files(caminhos))

@@ -50,13 +50,30 @@ Name: "{group}\Desinstalar o Lotus"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Lotus"; Filename: "{app}\Lotus.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\Lotus.exe"; Parameters: "--instalar-menu --silencioso"; Tasks: menu; Flags: waituntilterminated; StatusMsg: "Instalando o menu do botão direito..."
-Filename: "{app}\Lotus.exe"; Parameters: "--ativar-atalho --silencioso"; Tasks: atalho; Flags: waituntilterminated; StatusMsg: "Ligando o painel flutuante..."
-Filename: "{app}\Lotus.exe"; Parameters: "--ativar-bandeja --silencioso"; Tasks: bandeja; Flags: waituntilterminated; StatusMsg: "Colocando o Lotus ao lado do relógio..."
-Filename: "{app}\Lotus.exe"; Parameters: "--desativar-bandeja --silencioso"; Tasks: not bandeja; Flags: waituntilterminated
+; Instalação nova: aplica as opções escolhidas. Atualização feita pelo próprio
+; Lotus (/atualizacao=1): NÃO reaplica nada disso, para não desfazer o que a
+; pessoa mudou depois no app; só refaz os caminhos e reabre o Lotus.
+Filename: "{app}\Lotus.exe"; Parameters: "--instalar-menu --silencioso"; Tasks: menu; Check: InstalacaoNova; Flags: waituntilterminated; StatusMsg: "Instalando o menu do botão direito..."
+Filename: "{app}\Lotus.exe"; Parameters: "--ativar-atalho --silencioso"; Tasks: atalho; Check: InstalacaoNova; Flags: waituntilterminated; StatusMsg: "Ligando o painel flutuante..."
+Filename: "{app}\Lotus.exe"; Parameters: "--ativar-bandeja --silencioso"; Tasks: bandeja; Check: InstalacaoNova; Flags: waituntilterminated; StatusMsg: "Colocando o Lotus ao lado do relógio..."
+Filename: "{app}\Lotus.exe"; Parameters: "--desativar-bandeja --silencioso"; Tasks: not bandeja; Check: InstalacaoNova; Flags: waituntilterminated
+Filename: "{app}\Lotus.exe"; Parameters: "--pos-atualizacao --silencioso"; Check: Atualizacao; Flags: waituntilterminated
+Filename: "{app}\Lotus.exe"; Check: Atualizacao; Flags: nowait
 Filename: "{app}\Lotus.exe"; Description: "Abrir o Lotus agora"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; Remove menu, início automático e para o agente. Os arquivos convertidos e a
 ; configuração do usuário (%APPDATA%\Lotus) não são apagados.
 Filename: "{app}\Lotus.exe"; Parameters: "--desinstalar --silencioso"; Flags: waituntilterminated; RunOnceId: "LotusLimpeza"
+
+[Code]
+// /atualizacao=1 é passado pelo próprio Lotus (Ferramentas → Procurar atualização).
+function Atualizacao: Boolean;
+begin
+  Result := ExpandConstant('{param:atualizacao|0}') = '1';
+end;
+
+function InstalacaoNova: Boolean;
+begin
+  Result := not Atualizacao;
+end;
