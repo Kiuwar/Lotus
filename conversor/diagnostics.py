@@ -47,7 +47,7 @@ def repair_autostart(winreg_module=None) -> str:
 
     cfg = config.carregar()
     atual = controle.inicio_registrado(winreg_module)
-    if not cfg.atalho_ativo:
+    if not controle.precisa_rodar(cfg):
         if atual:
             controle.desativar_inicio(winreg_module)
             return "Painel flutuante: desligado; início automático que sobrou foi removido."
@@ -59,7 +59,11 @@ def repair_autostart(winreg_module=None) -> str:
     else:
         texto = "Painel flutuante: ok"
     rodando = controle.agente_rodando() or controle.iniciar_agente()
-    return f"{texto} ({cfg.gatilho.descrever()}; {'rodando' if rodando else 'NÃO está rodando'})."
+    partes = [cfg.gatilho.descrever() if cfg.atalho_ativo else "atalho desligado"]
+    if cfg.bandeja and controle.BANDEJA_SUPORTADA:
+        partes.append("ícone ao lado do relógio")
+    partes.append("rodando" if rodando else "NÃO está rodando")
+    return f"{texto} ({'; '.join(partes)})."
 
 
 def _writable(folder: Path) -> bool:

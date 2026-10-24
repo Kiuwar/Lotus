@@ -263,3 +263,44 @@ def test_desktop_selection_via_shell():
         pytest.skip("este runner não tem área de trabalho do Explorer")
     r = selecao.selecoes_mesa()
     assert set(r) == {0} and isinstance(r[0], list)
+
+
+# ---------- ícone ao lado do relógio (bandeja) ----------
+
+def test_tray_pywin32_names_exist():
+    import importlib
+
+    from conversor.atalho.bandeja import NOMES_BANDEJA
+
+    faltando = [f"{m}.{n}" for m, nomes in NOMES_BANDEJA.items()
+                for n in nomes if not hasattr(importlib.import_module(m), n)]
+    assert not faltando, faltando
+
+
+def test_tray_icon_appears_menu_command_queues_and_icon_goes_away():
+    import queue
+
+    import win32con
+    import win32gui
+
+    from conversor.atalho import bandeja
+    from conversor.ui import icone
+
+    comandos: queue.Queue = queue.Queue()
+    b = bandeja.Bandeja(comandos, str(icone.caminho("lotus.ico")), True, "Ctrl+Shift+clique esquerdo")
+    b.start()
+    assert b.pronto.wait(10)
+    assert b.erro is None, b.erro
+    if not b.visivel:
+        b.parar()
+        b.join(5)
+        pytest.skip("este runner não tem a área de notificação do Explorer")
+    # Escolher "Converter arquivos…" no menu = WM_COMMAND com o id do item.
+    win32gui.PostMessage(b.hwnd, win32con.WM_COMMAND, 1002, 0)
+    assert comandos.get(timeout=5) == bandeja.CONVERTER
+    # Duplo clique no ícone = mensagem do ícone com WM_LBUTTONDBLCLK.
+    win32gui.PostMessage(b.hwnd, bandeja.Bandeja.MSG_ICONE, 0, win32con.WM_LBUTTONDBLCLK)
+    assert comandos.get(timeout=5) == bandeja.ABRIR
+    b.parar()
+    b.join(5)
+    assert not b.is_alive() and not b.visivel, "ao fechar, o ícone tem de sair da bandeja"

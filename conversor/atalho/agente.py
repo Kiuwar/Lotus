@@ -7,8 +7,12 @@ recebem objetos do tkinter, só filas):
   mensagens do Windows. Só decide e enfileira; nunca bloqueia.
 - trabalho: simula o clique, lê a seleção do Explorer (COM) e manda o
   resultado para a interface.
-- principal (tkinter): mostra o painel, recarrega a configuração e atende o
-  pedido de parada.
+- principal (tkinter): mostra o painel, recarrega a configuração, executa
+  os comandos do ícone ao lado do relógio e atende o pedido de parada.
+- bandeja (bandeja.py): ícone e menu ao lado do relógio; só enfileira comandos.
+
+O gancho só é instalado com o atalho ligado; com só o ícone ligado, o agente
+roda sem ler nenhum evento de mouse.
 
 O que o gancho vê: só eventos de botão do mouse. Nada é gravado nem enviado;
 nenhuma tecla digitada é lida (a tecla de atalho usa RegisterHotKey, que só
@@ -160,10 +164,17 @@ def trabalhador(trabalho: queue.Queue, saida: queue.Queue) -> None:
 
 
 def executar() -> int:
-    """Ponto de entrada de `Lotus.exe --agente`."""
+    """Ponto de entrada de `Lotus.exe --agente`: gancho do atalho (se ligado) e
+    ícone ao lado do relógio (se ligado)."""
+    import subprocess
     import tkinter as tk
+    from tkinter import filedialog
 
+    from conversor import shell
+    from conversor.atalho import bandeja as bandeja_mod
+    from conversor.atalho import controle
     from conversor.atalho.painel import abrir_painel
+    from conversor.ui import icone
 
     log = get_logger()
     mutex = winapi.criar_mutex_unico()
@@ -176,23 +187,96 @@ def executar() -> int:
     trabalho: queue.Queue = queue.Queue()
     saida: queue.Queue = queue.Queue()
     cliques: queue.Queue = queue.Queue()
-    gancho = Gancho(cfg.gatilho, trabalho, cliques)
-    gancho.start()
-    gancho.pronto.wait(5)
+    comandos: queue.Queue = queue.Queue()
     threading.Thread(target=trabalhador, args=(trabalho, saida), name="lotus-trabalho", daemon=True).start()
-    log.info("agente iniciado: %s", cfg.gatilho.descrever())
+
+    estado = {"painel": None, "mtime": _mtime(config.arquivo_config()), "conta": 0,
+              "gancho": None, "bandeja": None, "cfg": cfg}
+
+    def ligar_gancho(g: config.Gatilho) -> None:
+        gancho = Gancho(g, trabalho, cliques)
+        gancho.start()
+        gancho.pronto.wait(5)
+        estado["gancho"] = gancho
+        log.info("agente: atalho ligado: %s", g.descrever())
+
+    def desligar_gancho() -> None:
+        if estado["gancho"] is not None:
+            estado["gancho"].parar()
+            estado["gancho"].join(2)
+            estado["gancho"] = None
+            log.info("agente: atalho desligado")
+
+    def aplicar(novo: config.Config) -> None:
+        antigo, estado["cfg"] = estado["cfg"], novo
+        if novo.atalho_ativo and estado["gancho"] is None:
+            ligar_gancho(novo.gatilho)
+        elif not novo.atalho_ativo:
+            desligar_gancho()
+        elif novo.gatilho != antigo.gatilho:
+            estado["gancho"].recarregar(novo.gatilho)
+            log.info("agente: atalho recarregado: %s", novo.gatilho.descrever())
+        b = estado["bandeja"]
+        if novo.bandeja and controle.BANDEJA_SUPORTADA and b is None:
+            b = bandeja_mod.Bandeja(comandos, str(icone.caminho("lotus.ico")),
+                                    novo.atalho_ativo, novo.gatilho.descrever())
+            b.start()
+            b.pronto.wait(5)
+            estado["bandeja"] = b
+        elif not novo.bandeja and b is not None:
+            b.parar()
+            estado["bandeja"] = None
+        if estado["bandeja"] is not None:
+            estado["bandeja"].atualizar(novo.atalho_ativo, novo.gatilho.descrever())
+
+    estado["cfg"] = config.Config(gatilho=cfg.gatilho, atalho_ativo=False, bandeja=False)
+    aplicar(cfg)
+    log.info("agente iniciado (atalho %s; ícone %s)", "ligado" if cfg.atalho_ativo else "desligado",
+             "ligado" if estado["bandeja"] is not None else "desligado")
 
     root = tk.Tk()
     registrar_erros_tcl(root)
     aplicar_icone(root)
     root.withdraw()
-    estado = {"painel": None, "mtime": _mtime(config.arquivo_config()), "conta": 0}
+
+    def recarregar_config() -> None:
+        estado["mtime"] = _mtime(config.arquivo_config())
+        aplicar(config.carregar())
+
+    def executar_comando(cmd: str) -> None:
+        from conversor.atalho.janela_config import JanelaAtalho
+        from conversor.ui.janela_aparencia import JanelaAparencia
+
+        if cmd == bandeja_mod.ABRIR:
+            subprocess.Popen(shell.launcher_command(), close_fds=True)
+        elif cmd == bandeja_mod.CONVERTER:
+            arquivos = list(filedialog.askopenfilenames(parent=root, title="Lotus — converter arquivos"))
+            if arquivos:
+                abrir_painel(root, arquivos, root.winfo_screenwidth() // 2, root.winfo_screenheight() // 2)
+        elif cmd == bandeja_mod.ATALHO:
+            controle.alternar_atalho()
+            controle.ativar_inicio()
+            recarregar_config()
+        elif cmd == bandeja_mod.CONFIGURAR:
+            JanelaAtalho(root)
+        elif cmd == bandeja_mod.APARENCIA:
+            JanelaAparencia(root)
+        elif cmd == bandeja_mod.SAIR:
+            log.info("agente: fechado pelo menu do ícone")
+            root.destroy()
 
     def tick() -> None:
         if winapi.evento_sinalizado(parar_evt):
             log.info("agente: parada pedida")
             root.destroy()
             return
+        for cmd in _esvaziar(comandos):
+            try:
+                executar_comando(cmd)
+            except Exception:
+                log.exception("agente: erro no comando %r do ícone", cmd)
+            if cmd == bandeja_mod.SAIR:
+                return
         try:
             while True:
                 _, arquivos, x, y = saida.get_nowait()
@@ -205,28 +289,31 @@ def executar() -> int:
                 estado["painel"] = abrir_painel(root, arquivos, x, y)
         except queue.Empty:
             pass
-        painel = estado["painel"]
-        if painel is not None and not painel.fechado:
-            gancho.painel_aberto.set()
-            for cx, cy in _esvaziar(cliques):
-                painel.clique_global(cx, cy)
-        else:
-            gancho.painel_aberto.clear()
+        painel, gancho = estado["painel"], estado["gancho"]
+        if gancho is not None:
+            if painel is not None and not painel.fechado:
+                gancho.painel_aberto.set()
+                for cx, cy in _esvaziar(cliques):
+                    painel.clique_global(cx, cy)
+            else:
+                gancho.painel_aberto.clear()
         estado["conta"] += 1
         if estado["conta"] % 40 == 0:  # a cada ~2 s: configuração mudou?
-            m = _mtime(config.arquivo_config())
-            if m != estado["mtime"]:
-                estado["mtime"] = m
-                novo = config.carregar()
-                gancho.recarregar(novo.gatilho)
-                log.info("agente: atalho recarregado: %s", novo.gatilho.descrever())
+            if _mtime(config.arquivo_config()) != estado["mtime"]:
+                recarregar_config()
+                if not controle.precisa_rodar(estado["cfg"]):
+                    log.info("agente: atalho e ícone desligados; saindo")
+                    root.destroy()
+                    return
         root.after(50, tick)
 
     root.after(50, tick)
     try:
         root.mainloop()
     finally:
-        gancho.parar()
+        desligar_gancho()
+        if estado["bandeja"] is not None:
+            estado["bandeja"].parar()
         trabalho.put(None)
         winapi.kernel32.CloseHandle(parar_evt)
         winapi.kernel32.CloseHandle(mutex)

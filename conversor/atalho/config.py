@@ -155,6 +155,8 @@ def arquivo_config() -> Path:
 class Config:
     gatilho: Gatilho = PADRAO
     atalho_ativo: bool = False
+    # Ícone ao lado do relógio (só Windows). Ligado por padrão.
+    bandeja: bool = True
 
 
 def carregar(caminho: Path | None = None) -> Config:
@@ -167,7 +169,8 @@ def carregar(caminho: Path | None = None) -> Config:
         erros, _ = validar(g)
         if erros:
             raise ValueError("; ".join(erros))
-        return Config(gatilho=g, atalho_ativo=bool(dados.get("atalho_ativo", False)))
+        return Config(gatilho=g, atalho_ativo=bool(dados.get("atalho_ativo", False)),
+                      bandeja=bool(dados.get("bandeja", True)))
     except Exception as e:
         # Reparo: guarda o arquivo ruim e segue com o padrão.
         reserva = caminho.with_suffix(".json.corrompido")
@@ -188,7 +191,8 @@ def salvar(cfg: Config, caminho: Path | None = None) -> None:
     tmp = caminho.with_suffix(".tmp")
     tmp.write_text(
         json.dumps(
-            {"versao": 1, "atalho": cfg.gatilho.para_dict(), "atalho_ativo": cfg.atalho_ativo},
+            {"versao": 1, "atalho": cfg.gatilho.para_dict(), "atalho_ativo": cfg.atalho_ativo,
+             "bandeja": cfg.bandeja},
             ensure_ascii=False,
             indent=2,
         ),

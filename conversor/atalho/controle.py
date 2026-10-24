@@ -1,4 +1,7 @@
-"""Liga/desliga o agente do atalho e o início automático com o Windows.
+"""Liga/desliga o agente (atalho + ícone ao lado do relógio) e o início automático.
+
+O agente roda se o atalho do painel OU o ícone da bandeja estiver ligado
+(`precisa_rodar`); o gancho de mouse só é instalado com o atalho ligado.
 
 Início automático: valor "Lotus.Atalho" em
 HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run (por usuário, sem
@@ -17,6 +20,14 @@ from conversor.logs import get_logger
 
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 VALOR = "Lotus.Atalho"
+
+
+# O ícone ao lado do relógio existe só no Windows (no Mac não foi pedido).
+BANDEJA_SUPORTADA = sys.platform == "win32"
+
+
+def precisa_rodar(cfg: config.Config) -> bool:
+    return cfg.atalho_ativo or (cfg.bandeja and BANDEJA_SUPORTADA)
 
 
 def comando_agente() -> str:
@@ -149,6 +160,39 @@ def desativar(winreg_module=None) -> str:
     cfg = config.carregar()
     cfg.atalho_ativo = False
     config.salvar(cfg)
+    if precisa_rodar(cfg):
+        # O agente segue rodando pelo ícone; ele relê a configuração e tira o gancho.
+        return "Painel flutuante desligado (o Lotus continua ao lado do relógio)."
     desativar_inicio(winreg_module)
     parar_agente()
     return "Painel flutuante desligado."
+
+
+def alternar_atalho() -> config.Config:
+    """Menu do ícone: liga/desliga o painel por atalho (o agente aplica na hora)."""
+    cfg = config.carregar()
+    cfg.atalho_ativo = not cfg.atalho_ativo
+    config.salvar(cfg)
+    return cfg
+
+
+def ativar_bandeja(winreg_module=None) -> str:
+    cfg = config.carregar()
+    cfg.bandeja = True
+    config.salvar(cfg)
+    if not BANDEJA_SUPORTADA:
+        return "O ícone ao lado do relógio existe só no Windows."
+    ativar_inicio(winreg_module)
+    ok = iniciar_agente()
+    return "Lotus ao lado do relógio: " + ("ligado." if ok else "configurado, mas não iniciou (veja o log).")
+
+
+def desativar_bandeja(winreg_module=None) -> str:
+    cfg = config.carregar()
+    cfg.bandeja = False
+    config.salvar(cfg)
+    if precisa_rodar(cfg):
+        return "Ícone ao lado do relógio desligado (o painel por atalho continua ligado)."
+    desativar_inicio(winreg_module)
+    parar_agente()
+    return "Ícone ao lado do relógio desligado."

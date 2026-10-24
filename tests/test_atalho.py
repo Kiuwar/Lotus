@@ -194,9 +194,73 @@ def test_diagnostics_removes_leftover_autostart_when_off(monkeypatch):
 
     wr = FakeWinreg()
     controle.ativar_inicio(wr)
-    config.salvar(config.Config(config.PADRAO, atalho_ativo=False))
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=False, bandeja=False))
     assert "removido" in diagnostics.repair_autostart(wr)
     assert controle.inicio_registrado(wr) is None
+
+
+# ---------- ícone ao lado do relógio (bandeja) ----------
+
+def test_tray_menu_items_and_commands():
+    from conversor.atalho import bandeja
+
+    itens = bandeja.itens_menu(True, "Ctrl+Shift+clique esquerdo")
+    textos = [t for i, t, _ in itens if i is not None]
+    assert textos[0] == "Abrir o Lotus" and "Converter arquivos…" in textos
+    marcado = {t: m for i, t, m in itens if i is not None}
+    assert marcado["Painel por atalho (Ctrl+Shift+clique esquerdo)"] is True
+    assert not bandeja.itens_menu(False, "x")[3][2]
+    ids = [i for i, _, _ in itens if i is not None]
+    assert len(ids) == len(set(ids)), "ids do menu repetidos"
+    assert {bandeja.comando_do_id(i) for i in ids} == {
+        bandeja.ABRIR, bandeja.CONVERTER, bandeja.ATALHO, bandeja.CONFIGURAR, bandeja.APARENCIA, bandeja.SAIR}
+    assert bandeja.comando_do_id(9999) is None
+    assert len(bandeja.DICA) < 128  # limite do Windows para a dica do ícone
+
+
+def test_tray_setting_is_saved_and_defaults_on(tmp_path):
+    arq = tmp_path / "c.json"
+    assert config.carregar(arq).bandeja is True
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=False, bandeja=False), arq)
+    assert config.carregar(arq).bandeja is False
+    arq.write_text('{"versao": 1, "atalho": {}, "atalho_ativo": true}', encoding="utf-8")
+    assert config.carregar(arq).bandeja is True, "config antiga (sem o campo) liga o ícone"
+
+
+@pytest.mark.parametrize("atalho,bandeja,suportada,esperado", [
+    (False, False, True, False),
+    (True, False, True, True),
+    (False, True, True, True),
+    (False, True, False, False),  # Mac/Linux: o ícone não existe
+])
+def test_agent_runs_for_shortcut_or_tray(monkeypatch, atalho, bandeja, suportada, esperado):
+    monkeypatch.setattr(controle, "BANDEJA_SUPORTADA", suportada)
+    assert controle.precisa_rodar(config.Config(config.PADRAO, atalho, bandeja)) is esperado
+
+
+def test_turning_shortcut_off_keeps_agent_for_tray(monkeypatch):
+    monkeypatch.setattr(controle, "BANDEJA_SUPORTADA", True)
+    parou = []
+    monkeypatch.setattr(controle, "parar_agente", lambda: parou.append(1))
+    wr = FakeWinreg()
+    controle.ativar_inicio(wr)
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=True, bandeja=True))
+    msg = controle.desativar(wr)
+    assert "relógio" in msg and not parou and controle.inicio_registrado(wr)
+    assert config.carregar().atalho_ativo is False
+    monkeypatch.setattr(controle, "iniciar_agente", lambda: True)
+    controle.desativar_bandeja(wr)
+    assert parou and controle.inicio_registrado(wr) is None
+    config.salvar(config.Config())
+
+
+def test_tray_menu_toggles_shortcut():
+    alternar_atalho = controle.alternar_atalho
+    config.salvar(config.Config(config.PADRAO, atalho_ativo=False))
+    assert alternar_atalho().atalho_ativo is True
+    assert config.carregar().atalho_ativo is True
+    assert alternar_atalho().atalho_ativo is False
+    config.salvar(config.Config())
 
 
 # ---------- janelas (display virtual) ----------

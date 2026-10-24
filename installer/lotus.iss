@@ -38,6 +38,7 @@ Name: "ptbr"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 [Tasks]
 Name: "menu"; Description: "Adicionar ""Converter para"" ao botão direito do mouse"
 Name: "atalho"; Description: "Ligar o painel flutuante (Ctrl+Shift+clique num arquivo do Explorer)"
+Name: "bandeja"; Description: "Mostrar o Lotus ao lado do relógio (inicia com o Windows)"
 Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; Flags: unchecked
 
 [Files]
@@ -51,6 +52,8 @@ Name: "{autodesktop}\Lotus"; Filename: "{app}\Lotus.exe"; Tasks: desktopicon
 [Run]
 Filename: "{app}\Lotus.exe"; Parameters: "--instalar-menu --silencioso"; Tasks: menu; Flags: waituntilterminated; StatusMsg: "Instalando o menu do botão direito..."
 Filename: "{app}\Lotus.exe"; Parameters: "--ativar-atalho --silencioso"; Tasks: atalho; Flags: waituntilterminated; StatusMsg: "Ligando o painel flutuante..."
+Filename: "{app}\Lotus.exe"; Parameters: "--ativar-bandeja --silencioso"; Tasks: bandeja; Flags: waituntilterminated; StatusMsg: "Colocando o Lotus ao lado do relógio..."
+Filename: "{app}\Lotus.exe"; Parameters: "--desativar-bandeja --silencioso"; Tasks: not bandeja; Flags: waituntilterminated
 Filename: "{app}\Lotus.exe"; Description: "Abrir o Lotus agora"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]

@@ -127,6 +127,12 @@ def dispatch(argv: list[str]) -> int:
         _show(controle.desativar())
         return 0
 
+    if argv and argv[0] in ("--ativar-bandeja", "--desativar-bandeja"):
+        from conversor.atalho import controle
+
+        _show(controle.ativar_bandeja() if argv[0] == "--ativar-bandeja" else controle.desativar_bandeja())
+        return 0
+
     if argv and argv[0] == "--desinstalar":
         # Chamado pelo desinstalador: desfaz tudo o que o Lotus gravou no sistema.
         from conversor import shell
