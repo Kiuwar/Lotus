@@ -26,6 +26,8 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\Lotus.exe
+; Flor de lótus (gerada por scripts/gerar_icone.py).
+SetupIconFile=..\conversor\recursos\lotus.ico
 UninstallDisplayName=Lotus
 ; Fecha o Lotus (inclusive o painel em segundo plano) antes de atualizar/remover.
 CloseApplications=force

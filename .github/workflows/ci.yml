@@ -84,8 +84,8 @@ jobs:
       - name: Empacotar
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --paths . packaging/app_gui.py
-          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --paths . packaging/app_cli.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.ico --add-data "conversor/recursos:conversor/recursos" --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --icon conversor/recursos/lotus.ico --paths . packaging/app_cli.py
           Copy-Item dist/conversor-cli.exe dist/Lotus/
           Copy-Item README.md, docs/FORMATOS.md dist/Lotus/
 
@@ -93,6 +93,8 @@ jobs:
         shell: pwsh
         run: |
           $exe = "dist/Lotus/conversor-cli.exe"
+          # Ícone da flor dentro do pacote (janela, bandeja e atalhos usam).
+          if (-not (Test-Path "dist/Lotus/_internal/conversor/recursos/lotus.ico")) { throw "lotus.ico não foi empacotado" }
           & $exe --listar
           if ($LASTEXITCODE -ne 0) { throw "--listar falhou" }
           python -c "from PIL import Image; Image.new('RGBA',(32,32),(255,0,0,128)).save('t.png')"
@@ -254,7 +256,7 @@ jobs:
       - name: Empacotar Lotus.app
         run: |
           VER=$(python -c "import conversor; print(conversor.__version__)")
-          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --osx-bundle-identifier com.kiuwar.lotus --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.icns --add-data "conversor/recursos:conversor/recursos" --osx-bundle-identifier com.kiuwar.lotus --paths . packaging/app_gui.py
           pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --paths . packaging/app_cli.py
           cp dist/conversor-cli dist/Lotus.app/Contents/MacOS/
           python scripts/ajustar_app_mac.py dist/Lotus.app "$VER"
@@ -264,6 +266,11 @@ jobs:
       - name: Teste do app empacotado (conversões, inclusive PDF)
         run: |
           CLI=dist/Lotus.app/Contents/MacOS/conversor-cli
+          # Ícone da flor: no pacote (janela/Dock) e como ícone do .app.
+          find dist/Lotus.app -name lotus.png | grep -q . || { echo "lotus.png não empacotado"; exit 1; }
+          ICONE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" dist/Lotus.app/Contents/Info.plist)
+          echo "CFBundleIconFile=$ICONE"
+          test -f "dist/Lotus.app/Contents/Resources/$ICONE" || test -f "dist/Lotus.app/Contents/Resources/$ICONE.icns"
           $CLI --listar > /dev/null
           python -c "from PIL import Image; Image.new('RGBA',(32,32),(255,0,0,128)).save('t.png')"
           printf 'Olá, ação\n' > t.txt

@@ -23,6 +23,7 @@ from conversor.core.detect import DetectionError, detect
 from conversor.core.engine import ConversionError, Result, convert_file
 from conversor.gui import common_targets, motivo_sem_destino
 from conversor.logs import log_file, registrar_erros_tcl
+from conversor.ui.icone import aplicar_icone
 
 TITLE = "Lotus"
 
@@ -104,6 +105,7 @@ def quick_convert(paths: list[str], target: str, root: tk.Tk | None = None) -> i
     failed, text = summary(outcomes)
     root = root or tk.Tk()
     registrar_erros_tcl(root)
+    aplicar_icone(root)
     if failed:
         root.withdraw()
         messagebox.showerror(TITLE, text, parent=root)
@@ -219,6 +221,7 @@ def _convert_into(results: list, paths: list[str], target: str) -> None:
 def choose(paths: list[str]) -> int:
     root = tk.Tk()
     registrar_erros_tcl(root)
+    aplicar_icone(root)
     Chooser(root, paths)
     root.mainloop()
     return 0

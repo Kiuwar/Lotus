@@ -29,6 +29,9 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
   `widgets.py` (pílula, cartão, estilo ttk), `moldura.py` (moldura própria),
   `janela_aparencia.py`.
 - `scripts/gerar_previas.py` — imagens do design (artefato "Galeria-de-design" no CI).
+- `conversor/ui/icone.py` — ícone da flor de lótus desenhado por código;
+  `scripts/gerar_icone.py` grava `conversor/recursos/lotus.{ico,icns,png}`
+  (o teste falha se estiverem desatualizados).
 - `conversor/atalho/mac.py` — agente do Mac (Quartz Event Tap, seleção do
   Finder via osascript, trava de instância, LaunchAgent).
 - `conversor/acao_rapida.py` — Ação Rápida do Finder (clique direito no Mac).

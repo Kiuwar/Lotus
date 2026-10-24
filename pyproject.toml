@@ -31,6 +31,9 @@ version = { attr = "conversor.__version__" }
 [tool.setuptools.packages.find]
 include = ["conversor*"]
 
+[tool.setuptools.package-data]
+conversor = ["recursos/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Teste parado há 2 min → o pytest imprime onde cada thread está (sem matar).

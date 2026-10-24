@@ -36,7 +36,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.listar:
         for c in registry.all_converters():
-            flag = "" if c.available() else "  (indisponível: requer ffmpeg)"
+            # O motivo vem do próprio conversor (ffmpeg, Word, PowerPoint…).
+            flag = "" if c.available() else f"  (indisponível: {c.notes or 'componente ausente'})"
             print(f"{c.category:10} {c.source:>5} -> {c.target}{flag}")
         return 0
 

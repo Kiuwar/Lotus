@@ -14,6 +14,7 @@ from conversor.core import registry
 from conversor.core.detect import DetectionError, detect
 from conversor.core.engine import ConversionError, convert_file
 from conversor.logs import registrar_erros_tcl
+from conversor.ui.icone import aplicar_icone
 
 
 def common_targets(formats: list[str]) -> list[str]:
@@ -376,6 +377,7 @@ def main(argv: list[str] | None = None) -> int:
     _enable_dpi_awareness()
     root = tk.Tk()
     registrar_erros_tcl(root)
+    aplicar_icone(root)
     aparencia = tema.carregar()
     pal = tema.paleta(aparencia)
     propria = sys.platform == "win32" and not aparencia.moldura_windows

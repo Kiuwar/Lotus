@@ -17,6 +17,7 @@ from __future__ import annotations
 import sys
 
 from conversor.logs import get_logger, log_file, registrar_erros_tcl
+from conversor.ui.icone import aplicar_icone
 
 TITLE = "Lotus"
 _silencioso = False
@@ -31,6 +32,7 @@ def _show(text: str, error: bool = False) -> None:
 
     root = tk.Tk()
     registrar_erros_tcl(root)
+    aplicar_icone(root)
     root.withdraw()
     (messagebox.showerror if error else messagebox.showinfo)(TITLE, text, parent=root)
     root.destroy()
