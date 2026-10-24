@@ -57,6 +57,36 @@ def janela_aparencia(destino: Path) -> None:
     root.mainloop()
 
 
+def _janela_nova(destino: Path, criar) -> None:
+    """Abre uma janela (Toplevel) criada por `criar(root)` e captura."""
+    from conversor.ui.widgets import aplicar_estilo_ttk
+
+    root = tk.Tk()
+    root.withdraw()
+    aplicar_estilo_ttk(root, tema.paleta(tema.Aparencia(), escuro=False))
+    j = criar(root)
+    j.geometry("+0+0")
+    root.after(900, lambda: (_capturar(j, destino), root.destroy()))
+    root.mainloop()
+
+
+def janelas_novas(pasta: Path) -> None:
+    from conversor import atualizar
+    from conversor.atalho.janela_ativacao import JanelaAtivacao
+    from conversor.ui.janela_ajuda import JanelaAjuda
+    from conversor.ui.janela_atualizacao import JanelaAtualizacao
+
+    _janela_nova(pasta / "ajuda.png", lambda r: JanelaAjuda(r, acoes={"Diagnosticar e reparar": None}))
+    versao = atualizar.Versao("0.9.0", "Novidades da versão:\n- Exemplo de nota.", "LotusSetup.exe",
+                              "https://github.com/x", "a" * 64, 48_000_000)
+    _janela_nova(pasta / "atualizar.png",
+                 lambda r: JanelaAtualizacao(r, ao_reiniciar=lambda: None, procurar=lambda: versao,
+                                             ja_autorizado=True))
+    estado = {"atalho_ativo": True, "agente_rodando": True, "ax_confiavel": False,
+              "estado_agente": {"gancho_ok": False}, "automacao": None}
+    _janela_nova(pasta / "ativacao-mac.png", lambda r: JanelaAtivacao(r, coletor=lambda a: dict(estado)))
+
+
 def main() -> int:
     pasta = Path(sys.argv[1] if len(sys.argv) > 1 else "previas")
     pasta.mkdir(parents=True, exist_ok=True)
@@ -64,6 +94,7 @@ def main() -> int:
     janela_principal(pasta / "janela-clara.png", escuro=False)
     janela_principal(pasta / "janela-escura.png", escuro=True)
     janela_aparencia(pasta / "aparencia.png")
+    janelas_novas(pasta)
     print(f"Prévias em {pasta}")
     return 0
 

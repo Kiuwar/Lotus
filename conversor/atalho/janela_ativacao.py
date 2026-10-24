@@ -67,7 +67,7 @@ class JanelaAtivacao(tk.Toplevel):
         for _ in range(3):
             linha = ttk.Frame(f)
             linha.pack(fill="x", pady=6)
-            marca = tk.Label(linha, text="", width=2, font=("Helvetica", 16, "bold"))
+            marca = ttk.Label(linha, text="", width=2, font=("Helvetica", 16, "bold"))
             marca.pack(side="left", anchor="n")
             texto = ttk.Frame(linha)
             texto.pack(side="left", fill="x", expand=True, padx=(8, 8))
@@ -113,7 +113,7 @@ class JanelaAtivacao(tk.Toplevel):
                 self.rodape.configure(text=valor)
         self.passos = am.passos(self._estado())
         for p, (marca, titulo, expl, dica, botao, texto) in zip(self.passos, self.linhas):
-            marca.configure(text="✓" if p.feito else str(p.numero), fg=VERDE if p.feito else CINZA)
+            marca.configure(text="✓" if p.feito else str(p.numero), foreground=VERDE if p.feito else CINZA)
             titulo.configure(text=p.titulo)
             expl.configure(text=p.explicacao)
             dica.configure(text=p.dica)

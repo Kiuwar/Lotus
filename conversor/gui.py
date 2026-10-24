@@ -198,6 +198,8 @@ class App(ttk.Frame):
         tools.add_separator()
         tools.add_command(label="Procurar atualização…", command=self.procurar_atualizacao,
                           state="normal" if sys.platform in ("win32", "darwin") else "disabled")
+        tools.add_command(label="Ajuda", command=self.mostrar_ajuda, accelerator="F1")
+        self.winfo_toplevel().bind("<F1>", lambda _e: self.mostrar_ajuda(), add="+")
         self.tools_menu = tools
         if self.moldura is not None and self.moldura.propria:
             self.moldura.definir_menu(tools)  # botão "Ferramentas ▾" da barra de título
@@ -292,6 +294,19 @@ class App(ttk.Frame):
             return janela
         self._guia = janela_ativacao.abrir(self.winfo_toplevel(), ao_fechar=ao_fechar)
         return self._guia
+
+    def mostrar_ajuda(self):
+        from conversor.ui import janela_ajuda
+
+        janela = getattr(self, "_ajuda", None)
+        if janela is not None and janela.winfo_exists():
+            janela.lift()
+            return janela
+        acoes = {"Diagnosticar e reparar": self.diagnose, "Abrir pasta do log": self.open_log_dir}
+        if sys.platform == "darwin":
+            acoes["Ativar o painel no Mac…"] = self.ativar_painel_mac
+        self._ajuda = janela_ajuda.abrir(self.winfo_toplevel(), acoes=acoes)
+        return self._ajuda
 
     def procurar_atualizacao(self, ja_autorizado: bool = False):
         from conversor.ui import janela_atualizacao
