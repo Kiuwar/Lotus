@@ -32,6 +32,15 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
   `widgets.py` (pílula, cartão, estilo ttk), `moldura.py` (moldura própria),
   `janela_aparencia.py`.
 - `scripts/gerar_previas.py` — imagens do design (artefato "Galeria-de-design" no CI).
+- `conversor/converters/docx_escrita.py` — TXT/MD/HTML → DOCX e PDF sem Word;
+  `tabelas.py` — planilhas → HTML/MD/PDF; `images.py` — inclui AVIF e HEIC.
+- `conversor/atualizar.py` + `ui/janela_atualizacao.py` — "Procurar
+  atualização" (ÚNICO uso de rede; ver regra 8). `installer/lotus.iss`
+  reconhece `/atualizacao=1` e NÃO reaplica as opções da 1ª instalação.
+- `conversor/ajuda.py` + `ui/janela_ajuda.py` — Ajuda dentro do app (F1).
+- `conversor/atalho/diagnostico_mac.py` (diagnóstico), `ativacao_mac.py` +
+  `janela_ativacao.py` (ativação guiada), `barra_mac.py` (ícone na barra de
+  menus do Mac; o clique só enfileira).
 - `conversor/ui/icone.py` — ícone da flor de lótus desenhado por código;
   `scripts/gerar_icone.py` grava `conversor/recursos/lotus.{ico,icns,png}`
   (o teste falha se estiverem desatualizados).

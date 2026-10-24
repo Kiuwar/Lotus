@@ -323,6 +323,50 @@ PowerPoint instalados (o CI não tem Office); aparência do ícone ao lado do
 relógio no seu Windows 10; abrir *Configurar atalho…* e *Aparência…* pelo
 ícone.
 
+## 4.7. Versão 0.8.0: HEIC/AVIF, documentos sem Word, planilhas, Mac e atualização
+
+**Decisões e por quê:**
+- **HEIC só leitura com pi-heif** (libheif + libde265, LGPL, sem x265): gravar
+  HEIC exigiria o x265 (GPL). O `pillow-heif` (com codificador) fica só nos
+  testes, excluído do empacotamento. Avisos de licença em `docs/LICENCAS.md`.
+- **DOCX escrito à mão** (Office Open XML) em vez de `python-docx` no app:
+  evita o `lxml` no pacote. O `python-docx` entra só nos testes, como leitor
+  INDEPENDENTE do que o Lotus grava (não vale conferir com o próprio leitor).
+- **textutil no Mac** para DOC/RTF/ODT, com opções conferidas no manual; HTML
+  nunca passa por ele (poderia buscar imagens na rede — regra 8).
+- **Planilhas → tabela** é conversão de APRESENTAÇÃO (vírgula decimal, datas
+  dd/mm/aaaa); a conversão de DADOS (CSV/JSON/XLSX) continua sem mexer em valor.
+- **Mac, painel por atalho:** primeiro um diagnóstico (A1), depois a correção
+  (A2). O diagnóstico confirmou por código: painel vinha desligado, o aviso de
+  falta de permissão podia ficar escondido, o agente nunca tentava de novo e
+  "tecla" não funcionava no Mac. `AXIsProcessTrusted` conferido na
+  documentação da Apple; os endereços dos Ajustes NÃO são documentados pela
+  Apple (lista da comunidade, com plano B).
+- **Barra de menus do Mac** (A3): converte a seleção do Finder sem
+  Acessibilidade. Atalho de teclado próprio sem Acessibilidade
+  (`RegisterEventHotKey`) foi descartado: API legada do Carbon, que a própria
+  Apple não recomenda; no lugar, o atalho de teclado da Ação Rápida pelo macOS.
+- **Atualizar** (exceção à regra 8, só quando a pessoa pede): GitHub em HTTPS,
+  SHA-256 conferido, instalador em modo atualização não reaplica as opções da
+  1ª instalação (o teste do CI provou que painel desligado e aparência
+  continuam iguais depois de atualizar).
+
+**Erros que os testes/CI pegaram nesta versão (e a lição):**
+- O CI do Windows procurava o submenu PDF pela POSIÇÃO (`14_pdf`); um formato
+  novo (AVIF) mudou a posição. Lição: procurar pelo nome, não pela ordem.
+- Valor padrão `sys.platform` num parâmetro é avaliado na importação, não na
+  chamada (o teste com outro sistema falhou).
+- A Ajuda tinha o rodapé com os botões empurrado para fora da janela — só
+  visto OLHANDO a prévia (regra 18).
+- "Tirar da barra de menus" faria o agente esperar a si mesmo por 5 s.
+
+**NÃO verificado (teste manual seu):** no Mac real — a janela de ativação
+abrindo a seção certa dos Ajustes, o gesto ⌥⇧+clique no Finder, o ícone na
+barra de menus e seu menu dentro do app de verdade, o atalho de teclado da
+Ação Rápida; a atualização de ponta a ponta pela internet (só possível a
+partir da 0.8.0 → próxima versão; o CI testou instalar por cima e trocar o
+.app a partir de arquivos locais).
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office
@@ -340,19 +384,26 @@ relógio no seu Windows 10; abrir *Configurar atalho…* e *Aparência…* pelo
 - **Assinatura de código:** o `.exe` não é assinado; o Windows SmartScreen
   e alguns antivírus podem alertar (comum com PyInstaller). Resolver exige
   certificado de assinatura de código (custo anual).
-- **Instalador** (MSI/Inno Setup) e atualização automática: não feitos.
+- **Atualização silenciosa em segundo plano:** de propósito, não existe; o
+  Lotus só procura quando a pessoa pede (e um lembrete mensal só pergunta).
 
 ---
 
 ## 6. LGPD
 
-Como o processamento é local, sem rede e sem telemetria, o aplicativo não
-coleta nem trata dados pessoais por conta própria; o usuário processa os
+Como o processamento é local e sem telemetria, o aplicativo não coleta nem
+trata dados pessoais por conta própria; o usuário processa os
 próprios arquivos no próprio computador. Isso reduz drasticamente as
 obrigações da Lei 13.709/2018 para o desenvolvedor. **Isso muda** se forem
 adicionados: telemetria, relatório de erros enviado pela internet, conta de
 usuário, licenciamento online ou conversão na nuvem. Nesses casos será
 preciso base legal, política de privacidade e informação clara ao usuário.
+
+Desde a 0.8.0, "Procurar atualização" acessa o GitHub quando a pessoa pede.
+O Lotus não envia dado algum, mas o GitHub (Microsoft) recebe o endereço IP,
+que pode ser dado pessoal pela LGPD; quem o trata é o GitHub, segundo a
+política dele. Por isso: o acesso só acontece por ação da pessoa, o aviso
+aparece antes (na janela e no lembrete), e o README/Ajuda explicam.
 (Avaliação geral, não parecer jurídico.)
 
 ---
