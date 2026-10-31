@@ -372,7 +372,11 @@ jobs:
       - name: Gerar o .dmg (arrastar para Aplicativos)
         run: |
           mkdir -p dmg && cp -R dist/Lotus.app dmg/ && ln -s /Applications dmg/Aplicativos
-          hdiutil create -volname "Lotus" -srcfolder dmg -ov -format UDZO "dist/Lotus-Mac-${{ matrix.arq }}.dmg"
+          # "Resource busy" do hdiutil acontece às vezes nos runners do Mac: até 3 tentativas.
+          for i in 1 2 3; do
+            hdiutil create -volname "Lotus" -srcfolder dmg -ov -format UDZO "dist/Lotus-Mac-${{ matrix.arq }}.dmg" && break
+            echo "hdiutil falhou (tentativa $i)"; [ $i = 3 ] && exit 1; sleep 15
+          done
           hdiutil attach -nobrowse -readonly -mountpoint /tmp/lotusdmg "dist/Lotus-Mac-${{ matrix.arq }}.dmg"
           test -x /tmp/lotusdmg/Lotus.app/Contents/MacOS/Lotus
           /tmp/lotusdmg/Lotus.app/Contents/MacOS/conversor-cli --listar | head -3
