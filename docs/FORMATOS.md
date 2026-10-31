@@ -2,7 +2,38 @@
 
 <!-- Arquivo GERADO por scripts/gerar_formatos.py. Não edite à mão. -->
 
-Total: **381 conversões**, todas cobertas por tests/test_matrix.py.
+Total: **449 conversões**, todas cobertas por tests/test_matrix.py.
+
+## 3D
+
+| Origem | Destinos |
+|---|---|
+| 3MF | GLB, JPG, OBJ, OFF, PLY, PNG, STL |
+| AVIF | 3MF, STL |
+| BMP | 3MF, STL |
+| GIF | 3MF, STL |
+| GLB | 3MF, JPG, OBJ, OFF, PLY, PNG, STL |
+| HEIC | 3MF, STL |
+| ICO | 3MF, STL |
+| JPG | 3MF, STL |
+| OBJ | 3MF, GLB, JPG, OFF, PLY, PNG, STL |
+| OFF | 3MF, GLB, JPG, OBJ, PLY, PNG, STL |
+| PLY | 3MF, GLB, JPG, OBJ, OFF, PNG, STL |
+| PNG | 3MF, STL |
+| STL | 3MF, GLB, JPG, OBJ, OFF, PLY, PNG |
+| SVG | 3MF, DXF, STL |
+| TIFF | 3MF, STL |
+| WEBP | 3MF, STL |
+
+Observação: Contornos em milímetros (corte a laser/CNC); cores e preenchimento não.
+
+Observação: Imagem do modelo em perspectiva isométrica (prévia para catálogo/mensagens).
+
+Observação: Litofania: escuro = mais grosso (100 mm de largura, 0,8–3,0 mm); veja contra a luz.
+
+Observação: Medidas em milímetros (GLB em metros, convertido); cores e texturas podem se perder.
+
+Observação: Áreas preenchidas viram peça com espessura (padrão 2 mm); medidas reais do SVG.
 
 ## Apresentação
 
@@ -32,9 +63,12 @@ Observação: Todas as abas; números com vírgula decimal e datas dd/mm/aaaa; s
 | MD | DOCX, HTML, PDF, TXT |
 | ODT | HTML, TXT |
 | RTF | HTML, TXT |
+| SVG | PDF |
 | TXT | DOCX, PDF |
 
 Observação: Markdown com tabelas e blocos de código.
+
+Observação: PDF vetorial, no tamanho do desenho.
 
 Observação: Requer o textutil do macOS (só no Mac).
 
@@ -56,15 +90,21 @@ Observação: Tira a marcação; mantém listas e tabelas.
 |---|---|
 | AVIF | BMP, GIF, ICO, JPG, PDF, PNG, TIFF, WEBP |
 | BMP | AVIF, GIF, ICO, JPG, PDF, PNG, TIFF, WEBP |
+| DXF | SVG |
 | GIF | AVIF, BMP, ICO, JPG, PDF, PNG, TIFF, WEBP |
 | HEIC | AVIF, BMP, GIF, ICO, JPG, PDF, PNG, TIFF, WEBP |
 | ICO | AVIF, BMP, GIF, JPG, PDF, PNG, TIFF, WEBP |
 | JPG | AVIF, BMP, GIF, ICO, PDF, PNG, TIFF, WEBP |
 | PNG | AVIF, BMP, GIF, ICO, JPG, PDF, TIFF, WEBP |
+| SVG | JPG, PNG, WEBP |
 | TIFF | AVIF, BMP, GIF, ICO, JPG, PDF, PNG, WEBP |
 | WEBP | AVIF, BMP, GIF, ICO, JPG, PDF, PNG, TIFF |
 
+Observação: Desenho do SVG em imagem (largura mínima de 1000 pixels).
+
 Observação: HEIC/HEIF só como origem (fotos do iPhone); gravar HEIC não é oferecido.
+
+Observação: Linhas, arcos e círculos, em milímetros.
 
 Observação: Requer Pillow com suporte a AVIF (incluído no instalador).
 

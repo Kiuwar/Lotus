@@ -40,11 +40,17 @@ Todas as versões, com o SHA-256 de cada arquivo:
 - **Vídeo (com ffmpeg):** MP4, MKV, WEBM, AVI, MOV, WMV, MPEG, M4V; vídeo →
   GIF animado e vídeo → imagem (PNG/JPG)
 - **Dados e texto:** CSV, JSON, XLSX entre si; TXT → PDF; Markdown → HTML
+- **Impressão 3D** (medidas em milímetros): STL, OBJ, 3MF, PLY, OFF e GLB entre si;
+  modelo → imagem PNG/JPG (prévia para catálogo); **SVG → STL/3MF** (as áreas
+  preenchidas viram peça com espessura, padrão 2 mm); **foto → litofania** STL/3MF
+  (escuro = mais grosso; 100 mm, de 0,8 a 3,0 mm); **SVG ↔ DXF** (corte a laser);
+  SVG → PNG/JPG/WEBP/PDF. Fatiar (G-code) continua no seu fatiador (Cura, PrusaSlicer,
+  Bambu Studio/Orca); STEP (CAD) no seu programa de CAD.
 - **Planilhas como tabela para ler e imprimir:** XLSX, CSV e JSON → HTML,
   Markdown e PDF (todas as abas; números com vírgula e datas dd/mm/aaaa)
 
 Lista completa, gerada a partir do código: [docs/FORMATOS.md](docs/FORMATOS.md)
-(381 conversões). As que não dependem do Word/PowerPoint são testadas de
+(449 conversões). As que não dependem do Word/PowerPoint são testadas de
 verdade no CI (Windows, Mac e Linux; as do `textutil`, só no Mac); as do
 Word/PowerPoint, com o programa simulado — o CI não tem Office.
 
@@ -306,8 +312,8 @@ também testa o `.exe` empacotado antes de publicá-lo. Para gerar localmente
 no Windows:
 
 ```
-pyinstaller --windowed --onedir --name Lotus --exclude-module pillow_heif --paths . packaging/app_gui.py
-pyinstaller --console --onefile --name conversor-cli --exclude-module pillow_heif --paths . packaging/app_cli.py
+pyinstaller --windowed --onedir --name Lotus --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_gui.py
+pyinstaller --console --onefile --name conversor-cli --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_cli.py
 ```
 
 O `pillow-heif` (em `requirements-dev.txt`) só cria as amostras HEIC dos

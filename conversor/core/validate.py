@@ -91,6 +91,27 @@ def check(path: Path, fmt: str) -> str | None:
     if fmt in MEDIA_FORMATS:
         return _check_media(path)
 
+    if fmt in MODELOS_3D:
+        return _check_malha(path, fmt)
+
+    if fmt == "svg":
+        from defusedxml import ElementTree as ET
+
+        try:
+            raiz = ET.parse(str(path)).getroot()
+        except Exception as e:
+            return f"SVG com XML inválido: {e}"
+        return None if raiz.tag.endswith("svg") else "não é um SVG (falta <svg>)"
+
+    if fmt == "dxf":
+        import ezdxf
+
+        try:
+            doc = ezdxf.readfile(str(path))
+        except Exception as e:
+            return f"DXF ilegível: {e}"
+        return None if len(doc.modelspace()) else "DXF sem nenhum desenho"
+
     return f"sem validador para {fmt}: adicione um em validate.py"
 
 
@@ -111,6 +132,21 @@ def _check_docx_xml(path: Path) -> str | None:
     except Exception as e:
         return f"DOCX com XML inválido: {e}"
     return None if corpo is not None else "DOCX sem corpo (w:body)"
+
+
+MODELOS_3D = {"stl", "obj", "3mf", "ply", "off", "glb"}
+
+
+def _check_malha(path: Path, fmt: str) -> str | None:
+    import trimesh
+
+    try:
+        malha = trimesh.load(str(path), file_type=fmt, force="mesh", allow_remote=False)
+    except Exception as e:
+        return f"{fmt.upper()} ilegível: {e}"
+    if len(getattr(malha, "faces", [])) == 0:
+        return f"{fmt.upper()} sem triângulos"
+    return None
 
 
 def _csv_delim(path: Path) -> str:

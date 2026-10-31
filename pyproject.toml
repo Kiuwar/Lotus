@@ -1,7 +1,7 @@
 [project]
 name = "lotus"
 dynamic = ["version"]
-description = "Conversor de arquivos offline para Windows"
+description = "Conversor de arquivos offline para Windows e Mac"
 requires-python = ">=3.11"
 dependencies = [
     "pillow==12.3.0",
@@ -12,6 +12,17 @@ dependencies = [
     "pypdfium2==5.14.0",
     "defusedxml==0.7.1",
     "pi-heif==1.4.0",
+    "numpy==2.5.4",
+    "trimesh==5.1.1",
+    "networkx==3.7",
+    "lxml==6.1.3",
+    "shapely==2.2.0",
+    "mapbox-earcut==2.1.0",
+    "svgelements==1.9.6",
+    "resvg-py==0.5.0",
+    "svglib==2.3.2",
+    "reportlab==5.1.0",
+    "ezdxf==1.4.5",
     "pywin32==312; sys_platform == 'win32'",
     "winrt-runtime==3.2.1; sys_platform == 'win32'",
     "winrt-Windows.Foundation==3.2.1; sys_platform == 'win32'",

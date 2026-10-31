@@ -20,7 +20,7 @@ from pathlib import Path
 
 from conversor.logs import get_logger
 
-GRUPOS = ("Imagem", "Documento", "Texto e dados", "Áudio", "Vídeo")
+GRUPOS = ("Imagem", "Documento", "Texto e dados", "Áudio", "Vídeo", "3D")
 TAMANHOS = {"P": 0.8, "M": 1.0, "G": 1.25}
 FORMAS = ("radial", "cartao")
 MODOS = ("auto", "claro", "escuro")
@@ -93,6 +93,16 @@ PRESETS: dict[str, tuple[dict, dict]] = {
                      "Áudio": "#40C8E0", "Vídeo": "#248A3D"}),
     ),
 }
+
+
+# Cor do grupo "3D" (modelos para impressão 3D e desenhos de corte) em cada tema.
+_COR_3D = {"Sistema": ("#5856D6", "#7D7AFF"), "Holográfico": ("#00838F", "#4FF0E0"),
+           "Azul Mac": ("#30B0C7", "#64D2FF"), "Rosa": ("#E8578A", "#FF8FAB"),
+           "Verde": ("#3A9D5D", "#64C466")}
+for _nome, _modos in PRESETS.items():
+    for _modo, _cor in zip(_modos, _COR_3D.get(_nome, (None, None))):
+        if _cor and "3D" not in _modo["grupos"]:
+            _modo["grupos"] = dict(_modo["grupos"], **{"3D": _cor})
 
 
 @dataclass(frozen=True)

@@ -20,6 +20,8 @@ FAMILIA = {
     "aac": "Áudio", "opus": "Áudio", "wma": "Áudio", "aiff": "Áudio",
     "mp4": "Vídeo", "mkv": "Vídeo", "webm": "Vídeo", "avi": "Vídeo", "mov": "Vídeo",
     "wmv": "Vídeo", "mpeg": "Vídeo", "m4v": "Vídeo",
+    "stl": "3D", "obj": "3D", "3mf": "3D", "ply": "3D", "off": "3D", "glb": "3D", "dxf": "3D",
+    "svg": "Imagem",
 }
 
 ROTULO = {"docx": "Word", "xlsx": "Excel", "md": "MD"}

@@ -14,6 +14,21 @@ defusedxml==0.7.1
 # é BSD-3; as bibliotecas embutidas libheif e libde265 são LGPL-3.0 (sem x265/GPL).
 # Avisos de licença em docs/LICENCAS.md.
 pi-heif==1.4.0
+# Impressão 3D e desenhos (verificados no PyPI em 2026-10-31; wheels para Windows e Mac).
+# trimesh 5.1.1 (MIT; a 5.2.0 tinha 1 semana); numpy (BSD); networkx (BSD) e lxml (BSD)
+# para 3MF; shapely (BSD) + mapbox-earcut (ISC) para extrudar SVG; svgelements (MIT);
+# resvg-py (MIT) SVG → imagem; svglib (LGPL-3) + reportlab (BSD) SVG → PDF; ezdxf (MIT).
+numpy==2.5.4
+trimesh==5.1.1
+networkx==3.7
+lxml==6.1.3
+shapely==2.2.0
+mapbox-earcut==2.1.0
+svgelements==1.9.6
+resvg-py==0.5.0
+svglib==2.3.2
+reportlab==5.1.0
+ezdxf==1.4.5
 # Só no Windows: leitura da seleção do Explorer (painel flutuante). Licença PSF.
 pywin32==312; sys_platform == "win32"
 # Só no Windows: OCR do próprio Windows (Windows.Media.Ocr) para PDF escaneado → TXT.

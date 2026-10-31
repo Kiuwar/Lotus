@@ -551,3 +551,12 @@ def test_empty_spreadsheet_to_table_explains(tmp_path):
     Workbook().save(src)
     with pytest.raises(ConversionError, match="não tem dados"):
         convert_file(src, "html", out_dir=tmp_path / "o")
+
+
+# ---------- impressão 3D (detalhes em test_3d.py) ----------
+
+def test_stl_to_3mf_keeps_millimeters(sample, tmp_path):
+    trimesh = pytest.importorskip("trimesh")
+    out = convert_file(sample("stl"), "3mf", out_dir=tmp_path / "o").output
+    m = trimesh.load(str(out), file_type="3mf", force="mesh")
+    assert sorted(round(x, 3) for x in m.extents) == [10.0, 20.0, 30.0]

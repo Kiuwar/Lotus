@@ -38,6 +38,9 @@ PyInstaller) que converte arquivos **localmente**, sem internet.
   atualização" (ÚNICO uso de rede; ver regra 8). `installer/lotus.iss`
   reconhece `/atualizacao=1` e NÃO reaplica as opções da 1ª instalação.
 - `conversor/ajuda.py` + `ui/janela_ajuda.py` — Ajuda dentro do app (F1).
+- `conversor/ocr.py` — OCR do sistema (Windows.Media.Ocr / Vision) para PDF escaneado.
+- Impressão 3D: `converters/modelos3d.py` (malhas, sempre em mm; prévia PNG),
+  `vetores.py` (SVG → imagem/PDF/STL, SVG ↔ DXF), `relevo.py` (foto → litofania).
 - `conversor/atalho/diagnostico_mac.py` (diagnóstico), `ativacao_mac.py` +
   `janela_ativacao.py` (ativação guiada), `barra_mac.py` (ícone na barra de
   menus do Mac; o clique só enfileira).

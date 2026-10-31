@@ -78,6 +78,12 @@ def make_sample(fmt: str, folder: Path) -> Path:
         make_opendocument(path, "application/vnd.oasis.opendocument.presentation")
     elif fmt == "rtf":
         path.write_bytes(b"{\\rtf1\\ansi Peti\\'e7\\'e3o: a\\'e7\\'e3o de cobran\\'e7a\\par}")
+    elif fmt in {"stl", "obj", "3mf", "ply", "off", "glb"}:
+        make_malha(path, fmt)
+    elif fmt == "svg":
+        path.write_text(SVG_TEXT, encoding="utf-8")
+    elif fmt == "dxf":
+        make_dxf(path)
     elif fmt == "html":
         path.write_text(HTML_TEXT, encoding="utf-8")
     elif fmt == "doc" and sys.platform == "darwin" and shutil.which("textutil"):
@@ -104,6 +110,37 @@ def make_sample(fmt: str, folder: Path) -> Path:
         )
     else:
         raise ValueError(f"sem gerador de amostra para {fmt}: adicione em conftest.py")
+    return path
+
+
+# Quadrado de 10 mm com furo quadrado de 4 mm (regra par/ímpar) e um círculo vermelho.
+SVG_TEXT = """<svg xmlns="http://www.w3.org/2000/svg" width="10mm" height="10mm" viewBox="0 0 10 10">
+<path d="M0 0 H10 V10 H0 Z M3 3 V7 H7 V3 Z" fill="black" fill-rule="evenodd"/>
+<circle cx="1.5" cy="1.5" r="0.5" fill="red"/></svg>
+"""
+
+
+def make_malha(path: Path, fmt: str, extents=(10.0, 20.0, 30.0)) -> Path:
+    """Caixa de 10 × 20 × 30 mm (GLB em metros, como manda o glTF)."""
+    import trimesh
+
+    caixa = trimesh.creation.box(extents)
+    if fmt == "glb":
+        caixa.apply_scale(0.001)
+    dados = caixa.export(file_type=fmt)
+    path.write_bytes(dados if isinstance(dados, bytes) else dados.encode("utf-8"))
+    return path
+
+
+def make_dxf(path: Path) -> Path:
+    """Retângulo de 40 × 20 mm e círculo de raio 5, em milímetros."""
+    import ezdxf
+
+    doc = ezdxf.new(units=4)
+    msp = doc.modelspace()
+    msp.add_lwpolyline([(0, 0), (40, 0), (40, 20), (0, 20)], close=True)
+    msp.add_circle((20, 10), 5)
+    doc.saveas(str(path))
     return path
 
 

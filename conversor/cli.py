@@ -18,6 +18,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sobrescrever", action="store_true", help="sobrescreve arquivo existente")
     p.add_argument("--qualidade", type=int, help="qualidade JPG/WEBP (1-100, padrão 90)")
     p.add_argument("--separador", help="separador do CSV gerado (padrão ;)")
+    p.add_argument("--espessura", type=float,
+                   help="impressão 3D, em mm: espessura da peça (SVG → STL, padrão 2) ou máxima da litofania (padrão 3)")
+    p.add_argument("--largura", type=float, help="impressão 3D, em mm: largura final da peça (litofania: padrão 100)")
+    p.add_argument("--modo", choices=["litofania", "relevo"],
+                   help="imagem → STL: litofania (escuro = grosso, padrão) ou relevo (claro = alto)")
     p.add_argument("--listar", action="store_true", help="lista as conversões disponíveis")
     p.add_argument("--instalar-menu", action="store_true", help="instala o menu do botão direito (Windows)")
     p.add_argument("--remover-menu", action="store_true", help="remove o menu do botão direito (Windows)")
@@ -84,6 +89,15 @@ def main(argv: list[str] | None = None) -> int:
         options["quality"] = args.qualidade
     if args.separador:
         options["csv_delimiter_out"] = args.separador
+    for nome in ("espessura", "largura"):
+        valor = getattr(args, nome)
+        if valor is not None:
+            if valor <= 0:
+                print(f"--{nome} deve ser maior que zero (em mm).", file=sys.stderr)
+                return 2
+            options[nome] = valor
+    if args.modo:
+        options["modo"] = args.modo
 
     failures = 0
     for path in args.arquivos:

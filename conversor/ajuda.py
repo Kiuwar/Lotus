@@ -117,6 +117,19 @@ def secoes(sistema: str | None = None) -> list[tuple[str, list[tuple[str, str]]]
                   + " Detalhes em docs/LICENCAS.md na página do projeto."),
         ("texto", f"Página do projeto: {PAGINA}"),
     ]
+    impressao = [
+        ("titulo", "Impressão 3D"),
+        ("texto", "Todas as medidas em milímetros, o padrão dos fatiadores. STL e OBJ não guardam "
+                  "unidade (considerados em mm); GLB é em metros e é convertido."),
+        ("passo", "STL, OBJ, 3MF, PLY, OFF e GLB entre si; modelo → PNG/JPG para mostrar a peça."),
+        ("passo", "SVG → STL/3MF: as áreas PREENCHIDAS viram peça com 2 mm de espessura (na linha "
+                  "de comando: --espessura e --largura, em mm)."),
+        ("passo", "Foto → STL/3MF (litofania): escuro fica mais grosso; 100 mm de largura, de 0,8 a "
+                  "3,0 mm. Imprima em branco, de pé, com 100% de preenchimento, e veja contra a luz."),
+        ("passo", "SVG ↔ DXF para corte a laser e CNC."),
+        ("texto", "Fatiar (gerar G-code) é com o seu fatiador (Cura, PrusaSlicer, Bambu Studio, "
+                  "Orca). Se o Lotus avisar que a malha não é fechada, o fatiador costuma repará-la."),
+    ]
     return [("Começar", comecar), ("Formatos", [("titulo", "O que converte")] + _formatos()),
-            ("Painel", painel), ("Ação Rápida" if mac else "Botão direito", menu),
+            ("Impressão 3D", impressao), ("Painel", painel), ("Ação Rápida" if mac else "Botão direito", menu),
             ("Problemas", problemas), ("Privacidade", privacidade), ("Sobre", sobre)]

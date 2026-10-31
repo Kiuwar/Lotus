@@ -21,6 +21,13 @@ manter o texto da licença.
 - O pacote **não** inclui codificador HEVC (x265, GPL). Por isso o Lotus só
   lê HEIC; não grava.
 
+## Impressão 3D e desenhos
+
+trimesh (MIT), numpy (BSD-3 e outras permissivas), networkx (BSD-3), lxml (BSD-3),
+shapely (BSD-3; inclui a GEOS, LGPL-2.1, como biblioteca separada), mapbox-earcut
+(ISC), svgelements (MIT), resvg-py (MIT; inclui o resvg, Apache-2.0/MIT),
+svglib (LGPL-3.0), reportlab (BSD), ezdxf (MIT).
+
 ## Ferramenta de testes (não vai no app)
 
 - `pillow-heif` — usado só nos testes para criar amostras HEIC. Traz o x265

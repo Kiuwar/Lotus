@@ -24,7 +24,7 @@ ALIASES = {
     "mpg": "mpeg",
 }
 
-TEXT_FORMATS = {"csv", "json", "txt", "md", "html"}
+TEXT_FORMATS = {"csv", "json", "txt", "md", "html", "obj", "svg", "dxf"}
 
 _WEAK_SIGNATURES = {"bmp", "mp3", "aac"}
 
@@ -99,6 +99,12 @@ def sniff(path: Path) -> str | None:
         return "ico"
     if head.startswith(b"%PDF-"):
         return "pdf"
+    if head[:4] == b"glTF":
+        return "glb"  # glTF binário
+    if head[:4] in (b"ply\n", b"ply\r"):
+        return "ply"
+    if head[:3] == b"OFF" or head[:4] == b"COFF":
+        return "off"
     if head[:4] == b"RIFF":
         kind = head[8:12]
         if kind == b"WEBP":
@@ -156,10 +162,23 @@ def sniff(path: Path) -> str | None:
             return "odt"
         if mime == b"application/vnd.oasis.opendocument.presentation":
             return "odp"
+        if any(n.lower() == "3d/3dmodel.model" for n in names):
+            return "3mf"  # pacote 3MF (impressão 3D)
         if any(n.lower().endswith(".fdseq") for n in names):
             return "xps"  # pacote XPS: tem uma sequência de documentos fixos
         return "zip"
     return None
+
+
+def _parece_stl(path: Path) -> bool:
+    """STL binário: 80 bytes de cabeçalho + nº de triângulos + 50 bytes cada.
+    STL texto: começa com "solid" e tem "facet"."""
+    tamanho = path.stat().st_size
+    with open(path, "rb") as f:
+        inicio = f.read(1024)
+    if tamanho >= 84 and 84 + 50 * int.from_bytes(inicio[80:84], "little") == tamanho:
+        return True
+    return inicio.lstrip().lower().startswith(b"solid") and b"facet" in inicio.lower()
 
 
 def _looks_like_text(path: Path) -> bool:
@@ -180,6 +199,10 @@ def detect(path: Path) -> Detection:
         raise DetectionError(f"Arquivo vazio: {path.name}")
 
     ext = normalize_ext(path.name)
+    if ext == "stl":  # STL binário não tem assinatura: confere tamanho ou texto
+        if _parece_stl(path):
+            return Detection("stl")
+        raise DetectionError(f"{path.name}: extensão .stl, mas o conteúdo não é um STL válido.")
     magic = sniff(path)
 
     # "BM" (BMP) e 0xFFFB (MP3) são assinaturas curtas que um texto pode

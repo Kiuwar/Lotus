@@ -31,8 +31,10 @@ def test_png_menu_has_all_targets_and_chooser():
     }
     subs = [k for k in keys if k.startswith(root + "\\shell\\") and not k.endswith("command")]
     labels = [keys[k]["MUIVerb"] for k in subs]
-    assert labels == ["AVIF", "BMP", "GIF", "ICO", "JPG", "PDF", "TIFF", "WEBP", "Escolher formato…"]
-    cmd = keys[root + r"\shell\15_pdf\command"][""]
+    assert labels == ["3MF", "AVIF", "BMP", "GIF", "ICO", "JPG", "PDF", "STL", "TIFF", "WEBP",
+                      "Escolher formato…"]
+    pdf = next(k for k in subs if k.endswith("_pdf"))  # pela extensão, não pela posição
+    cmd = keys[pdf + r"\command"][""]
     assert cmd == r'"C:\Program Files\Lotus\Lotus.exe" --menu-converter pdf "%1"'
     assert keys[root + r"\shell\99_escolher\command"][""].endswith('--menu-escolher "%1"')
 

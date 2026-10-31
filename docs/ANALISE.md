@@ -367,6 +367,29 @@ Ação Rápida; a atualização de ponta a ponta pela internet (só possível a
 partir da 0.8.0 → próxima versão; o CI testou instalar por cima e trocar o
 .app a partir de arquivos locais).
 
+## 4.8. Versão 0.9.0: OCR de PDF escaneado e impressão 3D
+
+**Decisões e por quê:**
+- **OCR do próprio sistema** (Windows.Media.Ocr, Vision do Mac) em vez de
+  embutir o Tesseract: sem internet e sem aumentar o instalador. O `winrt`
+  ficou na 3.2.1: a 4.x saiu no mesmo dia em que foi avaliada.
+- **Impressão 3D sempre em milímetros**: STL/OBJ não guardam unidade; 3MF é
+  convertido; GLB é em metros pela especificação glTF.
+- **trimesh 5.1.1** (a 5.2.0 tinha 1 semana). A prévia PNG é desenhada pelo
+  próprio Lotus (numpy + Pillow), sem OpenGL.
+- **SVG → imagem com resvg** e não cairosvg: o Cairo não vem no Windows.
+
+**Erros que os testes/CI pegaram nesta versão (e a lição):**
+- OCR no Windows: faltava o pacote `winrt-Windows.Storage(.Streams)`; o motor
+  abria, mas falhava ao receber a imagem. Só o CI do Windows mostrou.
+- resvg com o `dpi` padrão (0) dava "tamanho inválido" em SVG medido em mm.
+- `--largura` escalava a peça inteira, engrossando a espessura (4 mm virava
+  12 mm); o teste escrito junto tinha "confirmado" o erro. Lição: o valor
+  esperado de um teste vem da especificação, não da saída do código.
+
+**NÃO verificado (teste manual seu):** abrir no seu fatiador um STL/3MF
+gerado; imprimir uma litofania de teste; OCR com as suas teses reais.
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office
@@ -375,7 +398,8 @@ partir da 0.8.0 → próxima versão; o CI testou instalar por cima e trocar o
   modelo do ffmpeg.
 - **PDF → Word sem o Microsoft Word:** não há conversão offline confiável.
   Com Word, o resultado é aproximado (ver 4.3).
-- **OCR (PDF escaneado → texto):** não incluído (exigiria Tesseract).
+- **OCR em Linux:** não incluído (o Lotus usa o OCR do Windows e do Mac).
+- **G-code e STEP:** fatiar e CAD ficam nos programas próprios (Cura/Prusa/Orca; CAD).
 - **Vários arquivos no botão direito:** o Explorer abre um processo por
   arquivo, então cada um mostra seu aviso. Juntar tudo numa janela só
   exigiria um mecanismo de instância única (ou extensão COM do Explorer).

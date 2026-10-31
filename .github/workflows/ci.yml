@@ -84,8 +84,8 @@ jobs:
       - name: Empacotar
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.ico --add-data "conversor/recursos:conversor/recursos" --exclude-module pillow_heif --paths . packaging/app_gui.py
-          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --icon conversor/recursos/lotus.ico --exclude-module pillow_heif --paths . packaging/app_cli.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.ico --add-data "conversor/recursos:conversor/recursos" --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --icon conversor/recursos/lotus.ico --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_cli.py
           Copy-Item dist/conversor-cli.exe dist/Lotus/
           Copy-Item README.md, docs/FORMATOS.md dist/Lotus/
 
@@ -126,6 +126,15 @@ jobs:
           & $exe escaneado.pdf --para txt --saida saida_ocr
           Get-Content saida_ocr/escaneado.txt -ErrorAction SilentlyContinue
           if (!(Select-String -Path saida_ocr/escaneado.txt -Pattern "LOTUS" -Quiet)) { throw "OCR do PDF escaneado falhou no executável" }
+          # Impressão 3D no programa empacotado: malhas, prévia, SVG (imagem, peça, DXF) e litofania.
+          python -c "from pathlib import Path; from tests.conftest import make_malha, make_dxf, SVG_TEXT; make_malha(Path('cubo.stl'), 'stl'); make_dxf(Path('corte.dxf')); Path('logo.svg').write_text(SVG_TEXT)"
+          & $exe cubo.stl --para 3mf --saida saida_3d
+          & $exe cubo.stl --para png --saida saida_3d
+          & $exe logo.svg --para stl --espessura 3 --saida saida_3d
+          & $exe logo.svg --para png --saida saida_3d
+          & $exe corte.dxf --para svg --saida saida_3d
+          & $exe t.png --para stl --saida saida_3d
+          foreach ($f in 'cubo.3mf','cubo.png','logo.stl','logo.png','corte.svg','t.stl') { if (!(Test-Path "saida_3d/$f")) { throw "3D: $f não gerado no executável" } }
 
       - name: Teste do menu do botão direito (registro real do Windows)
         shell: pwsh
@@ -298,8 +307,8 @@ jobs:
       - name: Empacotar Lotus.app
         run: |
           VER=$(python -c "import conversor; print(conversor.__version__)")
-          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.icns --add-data "conversor/recursos:conversor/recursos" --osx-bundle-identifier com.kiuwar.lotus --exclude-module pillow_heif --paths . packaging/app_gui.py
-          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --exclude-module pillow_heif --paths . packaging/app_cli.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name Lotus --icon conversor/recursos/lotus.icns --add-data "conversor/recursos:conversor/recursos" --osx-bundle-identifier com.kiuwar.lotus --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_gui.py
+          pyinstaller --noconfirm --clean --console --onefile --name conversor-cli --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_cli.py
           cp dist/conversor-cli dist/Lotus.app/Contents/MacOS/
           python scripts/ajustar_app_mac.py dist/Lotus.app "$VER"
           codesign --force --deep --sign - dist/Lotus.app
@@ -337,6 +346,12 @@ jobs:
           python -c "from pathlib import Path; from tests.test_ocr import pdf_escaneado; pdf_escaneado(Path('escaneado.pdf'), ['LOTUS CONVERTE ARQUIVOS\nCODIGO 2026'])"
           $CLI escaneado.pdf --para txt --saida saida_ocr; cat saida_ocr/escaneado.txt
           grep -qi "lotus" saida_ocr/escaneado.txt
+          # Impressão 3D no app empacotado.
+          python -c "from pathlib import Path; from tests.conftest import make_malha, make_dxf, SVG_TEXT; make_malha(Path('cubo.stl'), 'stl'); make_dxf(Path('corte.dxf')); Path('logo.svg').write_text(SVG_TEXT)"
+          $CLI cubo.stl --para 3mf --saida saida_3d && $CLI cubo.stl --para png --saida saida_3d
+          $CLI logo.svg --para stl --espessura 3 --saida saida_3d && $CLI logo.svg --para png --saida saida_3d
+          $CLI corte.dxf --para svg --saida saida_3d && $CLI t.png --para stl --saida saida_3d
+          for f in cubo.3mf cubo.png logo.stl logo.png corte.svg t.stl; do test -f saida_3d/$f || { echo "3D: $f faltando"; exit 1; }; done
           # Diagnóstico do painel pelo app empacotado (AXIsProcessTrusted via ctypes, codesign).
           $CLI --diagnostico-mac | tee diagnostico.txt
           grep -q "Diagnóstico do painel no Mac" diagnostico.txt
