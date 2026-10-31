@@ -54,7 +54,8 @@ def secoes(sistema: str | None = None) -> list[tuple[str, list[tuple[str, str]]]
         ("texto", f"No {explorador}, {atalho} sobre um arquivo abre um painel com os formatos. "
                   "Clique num formato para converter na hora."),
         ("passo", "Trocar o atalho ou ligar/desligar: Ferramentas → Atalho do painel flutuante…"),
-        ("passo", "Mudar cores, tema (ex.: Holográfico) e tamanho: Ferramentas → Aparência…"),
+        ("passo", "Estilo (Vidro, Radial ou Cartão), cor e intensidade do vidro, animação e "
+                  "tamanho: Ferramentas → Aparência…"),
     ]
     if mac:
         painel += [

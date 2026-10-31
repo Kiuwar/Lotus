@@ -164,7 +164,10 @@ def test_appearance_window_preview_and_save(root, monkeypatch):
     j.definir_cor("Imagem", "#00AA00")
     j.definir_cor("destaque", "#112233")
     img2 = j.imagem_previa()
-    assert img2.size != img1.size, "prévia muda com tamanho/forma"
+    from PIL import ImageChops
+
+    assert img2.size == img1.size, "a prévia tem tamanho fixo; o painel muda dentro dela"
+    assert ImageChops.difference(img1.convert("RGB"), img2.convert("RGB")).getbbox(), "prévia muda com o estilo"
 
     j.salvar()
     salvo = tema.carregar()
@@ -217,3 +220,26 @@ def test_window_stops_being_topmost_after_a_moment(root):
         time.sleep(0.02)
     assert j.winfo_exists() and int(j.attributes("-topmost")) == 0
     j.destroy()
+
+
+def test_appearance_glass_options_save(root, monkeypatch):
+    from conversor.ui import janela_aparencia as mod
+
+    monkeypatch.setattr(mod.messagebox, "showinfo", lambda *a, **k: None)
+    j = mod.JanelaAparencia(root)
+    root.update()
+    assert j.v_forma.get() == "vidro" and j.sec_vidro.winfo_manager() == "pack"
+    assert j.sec_outros.winfo_manager() == "", "opções do Radial/Cartão escondidas no Vidro"
+    j._definir_vidro_cor("Roxo")
+    j.v_intens.set(30)
+    j.v_animacao.set(False)
+    j.v_papel.set("escuro")
+    previa = j.imagem_previa()
+    assert previa.size == (mod.LADO_PREVIA, mod.LADO_PREVIA)
+    j._escolher_forma("radial")
+    assert j.sec_outros.winfo_manager() == "pack" and j.botoes_forma["radial"].primario
+    j._escolher_forma("vidro")
+    j.salvar()
+    salvo = tema.carregar()
+    assert (salvo.forma, salvo.vidro_cor, salvo.vidro_intensidade, salvo.animacao) == ("vidro", "Roxo", 0.3, False)
+    tema.salvar(tema.PADRAO)
