@@ -356,27 +356,59 @@ class Pintor:
     """Monta quadros do painel rapidamente: a base é desenhada uma vez e cada
     caixa (normal / destacada / estados) só na primeira vez que aparece."""
 
-    def __init__(self, lay: Layout, pal: Paleta, nome: str, fmt_origem: str, opacidade: float = 0.96):
+    def __init__(self, lay: Layout, pal: Paleta, nome: str, fmt_origem: str, opacidade: float = 0.96,
+                 estilo: dict | None = None, fundo_atras: Image.Image | None = None):
+        """estilo (forma "vidro"): {"cor": "#RRGGBB", "intensidade": 0–1};
+        fundo_atras: captura do que está atrás do painel (vidro de verdade)."""
         self.lay, self.pal = lay, pal
-        self._bases = {
-            False: desenhar_base(lay, pal, nome, fmt_origem, opacidade),
-        }
-        self._args = (nome, fmt_origem, opacidade)
+        self.vidro = lay.forma == "vidro"
         self._itens: dict = {}
+        if self.vidro:
+            from conversor.ui import render_vidro, vidro
+
+            self.estilo = estilo or {"cor": vidro.hex_da_cor(None), "intensidade": vidro.INTENSIDADE_PADRAO}
+            self.fundo = render_vidro.preparar_fundo(fundo_atras, self.estilo["intensidade"])
+        self._args = (nome, fmt_origem, opacidade)
+        self._bases = {False: self._desenhar_base(False)}
+
+    def _desenhar_base(self, centro_ativo: bool) -> Image.Image:
+        nome, fmt_origem, opacidade = self._args
+        if self.vidro:
+            from conversor.ui import render_vidro
+
+            return render_vidro.desenhar_base(self.lay, self.pal, nome, fmt_origem, self.estilo, self.fundo,
+                                              centro_ativo)
+        return desenhar_base(self.lay, self.pal, nome, fmt_origem, opacidade, centro_ativo=centro_ativo)
 
     def _base(self, centro_ativo: bool) -> Image.Image:
         if centro_ativo not in self._bases:
-            self._bases[centro_ativo] = desenhar_base(self.lay, self.pal, *self._args, centro_ativo=True)
+            self._bases[centro_ativo] = self._desenhar_base(centro_ativo)
         return self._bases[centro_ativo]
 
-    def quadro(self, hover: str | None = None, estados: dict | None = None) -> Image.Image:
+    def _item(self, it, ativo: bool, estado: str | None):
+        if self.vidro:
+            from conversor.ui import render_vidro
+
+            return render_vidro.desenhar_item(it, self.lay, self.pal, self.estilo, self.fundo, ativo, estado)
+        return desenhar_item(it, self.lay, self.pal, ativo, estado)
+
+    def quadro(self, hover: str | None = None, estados: dict | None = None,
+               progresso: float = 1.0) -> Image.Image:
+        """progresso < 1: animação de entrada (as caixas saem do centro, aparecendo)."""
         estados = estados or {}
         img = self._base(hover == CENTRO).copy()
+        p = 1 - (1 - min(1.0, max(0.0, progresso))) ** 3  # desacelera no fim
         for it in self.lay.itens:
             chave = (it.fmt, hover == it.fmt, estados.get(it.fmt))
             if chave not in self._itens:
-                self._itens[chave] = desenhar_item(it, self.lay, self.pal, chave[1], chave[2])
+                self._itens[chave] = self._item(it, chave[1], chave[2])
             tile, pos = self._itens[chave]
+            if p < 1:
+                dx = (1 - p) * (self.lay.ancora_x - it.x)
+                dy = (1 - p) * (self.lay.ancora_y - it.y)
+                pos = (round(pos[0] + dx), round(pos[1] + dy))
+                tile = tile.copy()
+                tile.putalpha(tile.getchannel("A").point(lambda v: round(v * p)))
             img.alpha_composite(tile, pos)
         return img
 
@@ -433,4 +465,6 @@ def salvar_galeria(pasta: Path) -> list[Path]:
                     p = pasta / f"{forma}-{nome_tema.replace(' ', '')}-{'escuro' if escuro else 'claro'}-{origem}.png"
                     Image.alpha_composite(fundo, img).convert("RGB").save(p)
                     saidas.append(p)
-    return saidas
+    from conversor.ui import render_vidro
+
+    return saidas + render_vidro.salvar_galeria(pasta)

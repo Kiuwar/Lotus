@@ -303,7 +303,7 @@ def test_floating_panel_groups_formats_and_converts(root, sample):
     from conversor.ui import tema
 
     src = sample("pdf")
-    p = Painel(root, [str(src)], 400, 300, tema.Aparencia(modo="claro"))
+    p = Painel(root, [str(src)], 400, 300, tema.Aparencia(modo="claro", forma="radial"))
     root.update()
     fmts = {i.fmt: i for i in p.layout.itens}
     assert {"png", "jpg", "txt"} <= set(fmts)
@@ -316,6 +316,40 @@ def test_floating_panel_groups_formats_and_converts(root, sample):
     assert p.estados == {"txt": "ocupado"}
     _esperar(root, lambda: p.fechado)  # ✓ e fecha sozinho
     assert "ação" in (src.parent / "amostra.txt").read_text(encoding="utf-8")
+
+
+def test_glass_panel_animates_hovers_and_converts(root, sample):
+    from conversor.atalho.painel import Painel
+    from conversor.ui import tema
+
+    src = sample("pdf")
+    p = Painel(root, [str(src)], 400, 300, tema.Aparencia(forma="vidro", vidro_cor="Roxo"))
+    assert p.layout.forma == "vidro" and p.progresso < 1.0, "abre animando"
+    _esperar(root, lambda: p.progresso >= 1.0)
+    fmts = {i.fmt: i for i in p.layout.itens}
+    assert {i.grupo for i in p.layout.itens} >= {"Imagem", "Texto e dados"}
+    it = fmts["txt"]
+    p._mover(_Ev(it.x, it.y))
+    assert p.hover == "txt"
+    p._clicar(_Ev(it.x, it.y))
+    _esperar(root, lambda: p.fechado)
+    assert "ação" in (src.parent / "amostra.txt").read_text(encoding="utf-8")
+
+
+def test_glass_panel_closed_during_animation_leaves_nothing_pending(root, sample):
+    import time
+
+    from conversor.atalho.painel import Painel
+    from conversor.ui import tema
+
+    p = Painel(root, [str(sample("png"))], 400, 300, tema.Aparencia(forma="vidro"))
+    assert p.progresso < 1.0
+    p.destroy()
+    assert not p._afters
+    fim = time.time() + 0.4
+    while time.time() < fim:
+        root.update()
+        time.sleep(0.02)
 
 
 def test_closed_panel_leaves_no_pending_callbacks(root, sample):
@@ -396,6 +430,7 @@ def test_more_button_switches_to_full_card(root, tmp_path, monkeypatch):
     from conversor.ui import radial
 
     monkeypatch.setattr(radial, "MAX_ITENS", 3)
+    monkeypatch.setattr(radial, "MAX_ITENS_VIDRO", 3)  # o Vidro é o padrão
     criados = []
     original = mod.Painel.__init__
 

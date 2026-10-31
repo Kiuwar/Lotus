@@ -22,7 +22,7 @@ from conversor.logs import get_logger
 
 GRUPOS = ("Imagem", "Documento", "Texto e dados", "Áudio", "Vídeo", "3D")
 TAMANHOS = {"P": 0.8, "M": 1.0, "G": 1.25}
-FORMAS = ("radial", "cartao")
+FORMAS = ("vidro", "radial", "cartao")
 MODOS = ("auto", "claro", "escuro")
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -116,8 +116,16 @@ class Aparencia:
     cores_grupo: dict = field(default_factory=dict)
     opacidade: float = 0.96       # do fundo do painel, 0.6 a 1.0
     tamanho: str = "M"
-    forma: str = "radial"
+    forma: str = "vidro"
     moldura_windows: bool = False  # True = usar a moldura padrão do Windows na janela principal
+    # Estilo Vidro (ui/vidro.py): nome da cor (Azul, Neutro…) ou #RRGGBB; 0 = vidro
+    # limpo, 1 = bem fosco; pílulas saem do arquivo ao abrir.
+    vidro_cor: str = "Azul"
+    vidro_intensidade: float = 0.6
+    animacao: bool = True
+
+
+VERSAO_ARQUIVO = 2  # 2 = 0.10: o Vidro passou a ser o padrão
 
 
 PADRAO = Aparencia()
@@ -141,7 +149,19 @@ def validar(a: Aparencia) -> list[str]:
     for g in a.cores_grupo:
         if g not in GRUPOS:
             erros.append(f"Grupo desconhecido: {g}.")
+    from conversor.ui.vidro import CORES
+
+    if a.vidro_cor not in CORES and not _HEX.match(str(a.vidro_cor)):
+        erros.append(f"Cor do vidro inválida: {a.vidro_cor} (use {', '.join(CORES)} ou #RRGGBB).")
+    if not 0.0 <= float(a.vidro_intensidade) <= 1.0:
+        erros.append("Intensidade do vidro fora do intervalo (0 a 100%).")
     return erros
+
+
+def estilo_vidro(a: Aparencia) -> dict:
+    from conversor.ui.vidro import hex_da_cor
+
+    return {"cor": hex_da_cor(a.vidro_cor), "intensidade": float(a.vidro_intensidade)}
 
 
 # ---------- claro/escuro do sistema ----------
@@ -240,7 +260,13 @@ def carregar(caminho: Path | None = None) -> Aparencia:
     try:
         d = json.loads(caminho.read_text(encoding="utf-8"))
         a = Aparencia(**{k: v for k, v in d.items() if k in Aparencia.__dataclass_fields__})
-        a = replace(a, opacidade=float(a.opacidade), cores_grupo=dict(a.cores_grupo or {}))
+        a = replace(a, opacidade=float(a.opacidade), cores_grupo=dict(a.cores_grupo or {}),
+                    vidro_intensidade=float(a.vidro_intensidade), animacao=bool(a.animacao))
+        if int(d.get("versao", 1)) < VERSAO_ARQUIVO:
+            # Uma vez só, ao atualizar para a 0.10: o painel passa a ser o Vidro
+            # (a pessoa pode voltar ao Radial ou ao Cartão em Aparência).
+            a = replace(a, forma="vidro")
+            salvar(a, caminho)
         erros = validar(a)
         if erros:
             raise ValueError("; ".join(erros))
@@ -262,5 +288,6 @@ def salvar(a: Aparencia, caminho: Path | None = None) -> None:
     caminho = caminho or arquivo()
     caminho.parent.mkdir(parents=True, exist_ok=True)
     tmp = caminho.with_suffix(".tmp")
-    tmp.write_text(json.dumps(asdict(a), ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps({"versao": VERSAO_ARQUIVO, **asdict(a)}, ensure_ascii=False, indent=2),
+                   encoding="utf-8")
     os.replace(tmp, caminho)

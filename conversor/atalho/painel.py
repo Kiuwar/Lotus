@@ -25,6 +25,34 @@ from conversor.ui import camadas, grupos, radial, render, tema
 
 OCIOSO_MS = 15000
 FECHAR_APOS_OK_MS = 1200
+QUADROS_ENTRADA = 6       # animação de entrada: ~180 ms
+INTERVALO_QUADRO_MS = 30
+
+
+def recortar_escalado(tela, x: int, y: int, largura: int, altura: int, largura_logica: int):
+    """O Pillow captura em pixels FÍSICOS (ImageGrab.grab liga o DPI por monitor);
+    o agente trabalha em pixels lógicos. Com zoom de 150%, a escala é 1,5:
+    recorta a área certa e volta ao tamanho lógico. Fora da tela: None."""
+    escala = tela.width / max(1, largura_logica)
+    caixa = (round(x * escala), round(y * escala), round((x + largura) * escala), round((y + altura) * escala))
+    if caixa[0] < 0 or caixa[1] < 0 or caixa[2] > tela.width or caixa[3] > tela.height:
+        return None  # outro monitor: vidro simulado
+    return tela.crop(caixa).resize((largura, altura))
+
+
+def capturar_fundo(x: int, y: int, largura: int, altura: int, largura_logica: int):
+    """Windows: o que está na tela onde o painel vai aparecer (para o vidro de
+    verdade). No Mac exigiria a permissão de Gravação de Tela: não captura."""
+    if sys.platform != "win32":
+        return None
+    try:
+        from PIL import ImageGrab
+
+        tela = ImageGrab.grab()  # monitor principal, pixels físicos
+        return recortar_escalado(tela, x, y, largura, altura, largura_logica)
+    except Exception:  # noqa: BLE001 - sem captura, o vidro fica simulado
+        get_logger().exception("captura do fundo para o vidro")
+        return None
 
 
 def _converter(resultados: list, caminhos: list[str], fmt: str) -> None:
@@ -65,15 +93,25 @@ class Painel:
         escala = tema.TAMANHOS.get(self.aparencia.tamanho, 1.0)
         self.layout = radial.montar(grupos.agrupar(self.destinos), self.forma, escala)
         self.pal = tema.paleta(self.aparencia)
-        self.pintor = render.Pintor(self.layout, self.pal, nome, self.origem, self.aparencia.opacidade)
 
         self.top = tk.Toplevel(root)
         self.top.overrideredirect(True)
         self.top.attributes("-topmost", True)
         px, py = radial.posicionar(self.layout, x, y, self.top.winfo_screenwidth(), self.top.winfo_screenheight())
         self.pos = (px, py)
+        fundo = None
+        if self.forma == "vidro":  # captura ANTES de a janela aparecer
+            fundo = capturar_fundo(px, py, self.layout.largura, self.layout.altura,
+                                   self.top.winfo_screenwidth())
+        self.pintor = render.Pintor(self.layout, self.pal, nome, self.origem, self.aparencia.opacidade,
+                                    estilo=tema.estilo_vidro(self.aparencia), fundo_atras=fundo)
         self.superficie = camadas.criar(self.top, px, py, self.layout.largura, self.layout.altura, self.pal.fundo)
-        self._pintar()
+        self.progresso = 1.0
+        if self.forma == "vidro" and self.aparencia.animacao:
+            self.progresso = 0.0
+            self._animar()
+        else:
+            self._pintar()
 
         self.top.bind("<Motion>", self._mover)
         self.top.bind("<Leave>", lambda _e: self._set_hover(None))
@@ -116,7 +154,14 @@ class Painel:
 
     def _pintar(self) -> None:
         if not self.fechado:
-            self.superficie.mostrar(self.pintor.quadro(self.hover, self.estados))
+            self.superficie.mostrar(self.pintor.quadro(self.hover, self.estados, self.progresso))
+
+    def _animar(self) -> None:
+        """Pílulas saem do arquivo para a órbita (cada quadro via _depois: regra 22)."""
+        self.progresso = min(1.0, self.progresso + 1 / QUADROS_ENTRADA)
+        self._pintar()
+        if self.progresso < 1.0:
+            self._depois(INTERVALO_QUADRO_MS, self._animar)
 
     def _set_hover(self, alvo: str | None) -> None:
         if alvo != self.hover:

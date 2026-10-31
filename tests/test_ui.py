@@ -79,7 +79,7 @@ def _sobrepostos(lay):
 
 
 @pytest.mark.parametrize("origem", ORIGENS)
-@pytest.mark.parametrize("forma", ["radial", "cartao"])
+@pytest.mark.parametrize("forma", ["radial", "cartao", "vidro"])
 @pytest.mark.parametrize("escala", [0.8, 1.0, 1.25])
 def test_layout_has_no_overlap_and_fits(origem, forma, escala):
     g = grupos.agrupar(registry.targets_for(origem, only_available=False))
@@ -95,7 +95,15 @@ def test_layout_has_no_overlap_and_fits(origem, forma, escala):
             assert d + math.hypot(it.w, it.h) / 2 < lay.fundo_r
     total = len(registry.targets_for(origem, only_available=False))
     mostrados = [i.fmt for i in lay.itens if i.fmt != radial.MAIS]
-    if forma == "radial" and total > radial.MAX_ITENS:
+    if forma == "vidro":
+        for it in lay.itens:  # nenhuma pílula encosta no disco do arquivo
+            d = math.hypot(it.x - lay.ancora_x, it.y - lay.ancora_y)
+            assert d - math.hypot(it.w, it.h) / 2 > lay.centro_r
+        if total > radial.MAX_ITENS_VIDRO:
+            assert len(lay.itens) == radial.MAX_ITENS_VIDRO and lay.itens[-1].fmt == radial.MAIS
+        else:
+            assert len(mostrados) == total
+    elif forma == "radial" and total > radial.MAX_ITENS:
         assert len(lay.itens) == radial.MAX_ITENS and lay.itens[-1].fmt == radial.MAIS
     else:  # o cartão é a lista completa (é ele que o "Mais…" abre)
         assert len(mostrados) == total
@@ -185,7 +193,9 @@ def test_cached_frames_match_full_render():
 
 def test_gallery(tmp_path):
     arquivos = render.salvar_galeria(tmp_path)
-    assert len(arquivos) == len(tema.PRESETS) * 2 * 2 * 2
+    from conversor.ui import vidro
+
+    assert len(arquivos) == len(tema.PRESETS) * 2 * 2 * 2 + len(vidro.CORES) * 4
     with Image.open(arquivos[0]) as im:
         assert im.size[0] > 200
 

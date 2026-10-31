@@ -7,6 +7,10 @@ espaço: Imagem de um lado, Documento de outro, e assim por diante.
 
 Forma "cartao": lista em cartão, com uma seção por grupo.
 
+Forma "vidro": só o ícone do arquivo no centro e uma PÍLULA por formato em
+volta (órbita), sem fundo nem faixas; dois anéis intercalados quando há mais
+de 10 formatos. A largura de cada pílula acompanha o texto.
+
 Tudo em pixels da janela; `escala` vem do tamanho P/M/G.
 """
 
@@ -16,6 +20,8 @@ import math
 from dataclasses import dataclass, field
 
 MAX_ITENS = 12   # acima disso, os últimos vão para "Mais…"
+MAX_ITENS_VIDRO = 18
+UM_ANEL_VIDRO = 10
 MAIS = "__mais__"
 CENTRO = "__centro__"
 
@@ -67,20 +73,21 @@ class Layout:
         for it in self.itens:
             if it.contem(px, py):
                 return it.fmt
-        if self.forma == "radial":
+        if self.forma in ("radial", "vidro"):
             d = math.hypot(px - self.ancora_x, py - self.ancora_y)
             if d <= self.centro_r:
                 return CENTRO
         return None
 
 
-def _limitar(grupos: list[tuple[str, list[str]]]) -> tuple[list[tuple[str, list[str]]], bool]:
+def _limitar(grupos: list[tuple[str, list[str]]],
+             maximo: int = MAX_ITENS) -> tuple[list[tuple[str, list[str]]], bool]:
     total = sum(len(f) for _, f in grupos)
-    if total <= MAX_ITENS:
+    if total <= maximo:
         return grupos, False
     # Uma vaga fica para "Mais…"; as outras são divididas em rodízio entre os
     # grupos (um de cada vez), para nenhum grupo sumir inteiro no "Mais…".
-    restam = MAX_ITENS - 1
+    restam = maximo - 1
     quantos = [0] * len(grupos)
     while restam > 0:
         avancou = False
@@ -176,8 +183,56 @@ def cartao(grupos: list[tuple[str, list[str]]], escala: float = 1.0) -> Layout:
                   secoes=secoes, escala=escala, margem=m)
 
 
+def largura_pilula(rotulo: str, escala: float = 1.0) -> float:
+    """Largura de uma pílula de vidro: acompanha o texto (estimativa por letra)."""
+    return max(62.0, 34.0 + 9.6 * len(rotulo)) * escala  # inclui o pontinho de cor
+
+
+def orbita(grupos: list[tuple[str, list[str]]], escala: float = 1.0) -> Layout:
+    from conversor.ui.grupos import rotulo as rotulo_de
+
+    grupos, tem_mais = _limitar(grupos, MAX_ITENS_VIDRO)
+    seq = [(g, f) for g, fs in grupos for f in fs] + ([(None, MAIS)] if tem_mais else [])
+    h, raio = 34 * escala, 17 * escala
+    centro_r = 34 * escala
+    folga = 8 * escala
+    larguras = [largura_pilula("Mais…" if f == MAIS else rotulo_de(f), escala) for _, f in seq]
+    n = len(seq)
+    if n > UM_ANEL_VIDRO:  # dois anéis intercalados: dentro os pares, fora os ímpares
+        aneis = [list(range(0, n, 2)), list(range(1, n, 2))]
+    else:
+        aneis = [list(range(n))]
+    angulos = [0.0] * n
+    for k, anel in enumerate(aneis):
+        passo = 360.0 / max(len(anel), 1)
+        for j, i in enumerate(anel):
+            angulos[i] = -90.0 + j * passo + (passo / 2 if k == 1 else 0.0)
+    # Raio mínimo: as pílulas do anel interno não tocam o disco central nem o
+    # nome do arquivo (que fica logo abaixo dele).
+    r_in = centro_r + h / 2 + 30 * escala + max(larguras, default=0) * 0.25
+    for _ in range(120):
+        r_out = r_in + h + 12 * escala
+        raios = [r_in if (len(aneis) == 1 or i in aneis[0]) else r_out for i in range(n)]
+        pts = [(r * math.cos(math.radians(a)), r * math.sin(math.radians(a))) for r, a in zip(raios, angulos)]
+        sobrepoe = any(abs(p[0] - q[0]) < (larguras[i] + larguras[j]) / 2 + folga and abs(p[1] - q[1]) < h + folga
+                       for i, p in enumerate(pts) for j, q in enumerate(pts) if j > i)
+        if not sobrepoe:
+            break
+        r_in *= 1.04
+    ext_x = max((abs(p[0]) + larguras[i] / 2 for i, p in enumerate(pts)), default=centro_r)
+    ext_y = max((abs(p[1]) + h / 2 for p in pts), default=centro_r)
+    meio = math.ceil(max(ext_x, ext_y, centro_r + 30 * escala) + 22 * escala)  # margem: sombra/brilho
+    cx = cy = meio
+    itens = [Item(f, g, cx + p[0], cy + p[1], larguras[i], h, raio) for i, ((g, f), p) in enumerate(zip(seq, pts))]
+    return Layout("vidro", 2 * meio, 2 * meio, cx, cy, itens, centro_r=centro_r, escala=escala)
+
+
 def montar(grupos: list[tuple[str, list[str]]], forma: str = "radial", escala: float = 1.0) -> Layout:
-    return cartao(grupos, escala) if forma == "cartao" else radial(grupos, escala)
+    if forma == "cartao":
+        return cartao(grupos, escala)
+    if forma == "vidro":
+        return orbita(grupos, escala)
+    return radial(grupos, escala)
 
 
 def posicionar(lay: Layout, cursor_x: int, cursor_y: int, tela_l: int, tela_a: int) -> tuple[int, int]:
