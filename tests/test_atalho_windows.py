@@ -222,6 +222,8 @@ def test_layered_panel_real_mouse_hover_click_and_click_through(tmp_path):
     try:
         p = mod.Painel(root, [str(src)], 600, 450, tema.Aparencia(modo="claro"))
         root.update()
+        # O painel abre animando (pílulas saindo do arquivo): espera chegarem à órbita.
+        assert _bombear(root, lambda: p.progresso >= 1.0, 3), "a animação de entrada não terminou"
         assert isinstance(p.superficie, camadas.SuperficieCamadas), "caiu na reserva (veja o log)"
         estilo = camadas.user32.GetWindowLongPtrW(p.superficie.hwnd, camadas.GWL_EXSTYLE)
         assert estilo & camadas.WS_EX_LAYERED

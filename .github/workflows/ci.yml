@@ -266,7 +266,8 @@ jobs:
         timeout-minutes: 8
         run: python scripts/diagnostico_tk_mac.py
       - name: Testes (Mac)
-        timeout-minutes: 10
+        # A suíte cresceu (3D, Vidro); o runner Intel leva ~1 s por conversão de mídia.
+        timeout-minutes: 20
         run: python -m pytest -v -rs
       - name: Pilha nativa do travamento (se houve)
         if: always()
