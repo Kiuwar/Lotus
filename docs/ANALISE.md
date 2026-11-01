@@ -390,6 +390,27 @@ partir da 0.8.0 → próxima versão; o CI testou instalar por cima e trocar o
 **NÃO verificado (teste manual seu):** abrir no seu fatiador um STL/3MF
 gerado; imprimir uma litofania de teste; OCR com as suas teses reais.
 
+## 4.9. Versão 0.10.0: painel Vidro e nova Aparência
+
+Decisões:
+- **Vidro real só no Windows.** O fundo atrás do painel é capturado com
+  `ImageGrab.grab()`, que devolve pixels FÍSICOS; o recorte é escalado por
+  `largura_da_captura / winfo_screenwidth()` (`painel.recortar_escalado`).
+  Fora da tela ou sem captura, cai no vidro simulado. No Mac, desfocar o fundo
+  exigiria a permissão de Gravação de Tela: o vidro é simulado e translúcido.
+- **Contraste garantido por código** (`vidro.tinta_legivel`): a tinta do vidro
+  ganha opacidade até o texto passar — branco ≥ 3:1 (exceção de botão colorido
+  do macOS), escuro ≥ 4,5:1. Sem fundo conhecido, o teste é feito sobre
+  branco, preto e cinza (`FUNDOS_DESCONHECIDOS`).
+- Animação de entrada em 6 quadros pelo `_depois` (regra 22: cancelada ao
+  fechar). Migração única (`VERSAO_ARQUIVO=2`) torna Vidro o padrão.
+
+Erros pegos antes da versão:
+- O teste de mouse real no Windows clicava durante a animação de entrada
+  (pílulas ainda fora do lugar): o teste agora espera `progresso >= 1`.
+- `hdiutil create` falha de forma intermitente ("Resource busy") no Mac
+  Intel do CI: até 3 tentativas.
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office

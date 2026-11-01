@@ -1,7 +1,9 @@
 # Lotus
 
-Converte arquivos entre formatos **no seu computador** (Windows e Mac),
-sem enviar nada para a internet.
+Conversor de arquivos para **Windows e Mac** que funciona **no seu
+computador**, sem internet: imagens, PDF (inclusive escaneado), Word,
+PowerPoint, planilhas, áudio, vídeo e **arquivos para impressão 3D** — 449
+conversões. Os arquivos nunca saem do computador.
 
 ## Baixar
 
@@ -11,290 +13,199 @@ sem enviar nada para a internet.
 | **Mac com chip Apple** (M1, M2, M3, M4…) | [**Lotus-Mac-AppleSilicon.dmg**](https://github.com/Kiuwar/Lotus/releases/latest/download/Lotus-Mac-AppleSilicon.dmg) |
 | **Mac com processador Intel** | [**Lotus-Mac-Intel.dmg**](https://github.com/Kiuwar/Lotus/releases/latest/download/Lotus-Mac-Intel.dmg) |
 
-Os links baixam sempre a versão mais nova, sem precisar de conta no GitHub.
-Todas as versões, com o SHA-256 de cada arquivo:
-[Releases](https://github.com/Kiuwar/Lotus/releases).
+Os links baixam sempre a versão mais nova, sem conta no GitHub. Todas as
+versões, com o código SHA-256 de cada arquivo:
+[Releases](https://github.com/Kiuwar/Lotus/releases). Quem já tem o Lotus
+atualiza pelo próprio app (*Ferramentas → Procurar atualização…*).
 
 ## O que converte
 
-- **Imagens:** PNG, JPG, WEBP, BMP, GIF, TIFF, ICO e AVIF (entre si e para PDF)
-- **Fotos do iPhone (HEIC/HEIF):** para JPG, PNG, PDF e as outras imagens
-  (só leitura: o Lotus não grava HEIC)
-- **PDF:** para imagens (PNG/JPG, uma por página) e para texto (TXT), inclusive
-  escaneado, por OCR offline no Windows e no Mac
-- **Word, sem precisar do Word:** DOCX → TXT, Markdown e HTML (títulos,
-  listas, tabelas e links); TXT, Markdown e HTML → DOCX (com os estilos de
-  título do Word); DOCX → PDF simples (texto, títulos, listas e tabelas — o
-  layout do Word não é reproduzido, e o Lotus avisa)
-- **Word, com o Microsoft Word instalado (Windows):** DOCX, DOC, RTF e ODT
-  entre si e para PDF (idêntico ao Word) e XPS; PDF → DOCX
-- **No Mac, sem o Word:** DOCX, DOC, RTF e ODT entre si e DOC/RTF/ODT → TXT,
-  HTML e PDF, pelo `textutil` que já vem no macOS
-- **Markdown e HTML:** para PDF, DOCX e TXT; HTML → Markdown
-- **PowerPoint, sem precisar do PowerPoint:** PPTX → TXT e Markdown (texto e
-  notas de cada slide)
-- **PowerPoint, com o PowerPoint instalado (Windows):** PPTX, PPT e ODP entre
-  si e para PDF; uma imagem PNG/JPG por slide
-- **Áudio (com ffmpeg):** MP3, WAV, OGG, FLAC, M4A, AAC, OPUS, WMA, AIFF;
-  de qualquer vídeo também; áudio → MP4 (tela preta, para sites que só aceitam vídeo)
-- **Vídeo (com ffmpeg):** MP4, MKV, WEBM, AVI, MOV, WMV, MPEG, M4V; vídeo →
-  GIF animado e vídeo → imagem (PNG/JPG)
-- **Dados e texto:** CSV, JSON, XLSX entre si; TXT → PDF; Markdown → HTML
-- **Impressão 3D** (medidas em milímetros): STL, OBJ, 3MF, PLY, OFF e GLB entre si;
-  modelo → imagem PNG/JPG (prévia para catálogo); **SVG → STL/3MF** (as áreas
-  preenchidas viram peça com espessura, padrão 2 mm); **foto → litofania** STL/3MF
-  (escuro = mais grosso; 100 mm, de 0,8 a 3,0 mm); **SVG ↔ DXF** (corte a laser);
-  SVG → PNG/JPG/WEBP/PDF. Fatiar (G-code) continua no seu fatiador (Cura, PrusaSlicer,
-  Bambu Studio/Orca); STEP (CAD) no seu programa de CAD.
-- **Planilhas como tabela para ler e imprimir:** XLSX, CSV e JSON → HTML,
-  Markdown e PDF (todas as abas; números com vírgula e datas dd/mm/aaaa)
+| Área | Conversões |
+|---|---|
+| **Imagens** | PNG, JPG, WEBP, BMP, GIF, TIFF, ICO e AVIF entre si e para PDF; **fotos do iPhone (HEIC/HEIF)** para todas elas (o Lotus lê HEIC, não grava) |
+| **PDF** | Para PNG/JPG (uma imagem por página) e para TXT — **inclusive PDF escaneado**, lido por OCR do próprio Windows/Mac, sem internet |
+| **Word** | Sem Word: DOCX → TXT/Markdown/HTML; TXT/Markdown/HTML → DOCX (com estilos de título); DOCX → PDF simples. Com o Word (Windows): DOCX, DOC, RTF e ODT entre si, PDF idêntico ao Word, XPS e PDF → DOCX. No Mac: DOCX, DOC, RTF e ODT pelo `textutil` do macOS |
+| **PowerPoint** | Sem PowerPoint: PPTX → TXT/Markdown (texto e notas). Com o PowerPoint (Windows): PPTX, PPT e ODP entre si, PDF e uma imagem por slide |
+| **Planilhas e dados** | CSV, JSON e XLSX entre si; XLSX/CSV/JSON → HTML, Markdown e PDF para ler e imprimir (todas as abas, vírgula decimal, datas dd/mm/aaaa) |
+| **Texto** | TXT → PDF; Markdown e HTML → PDF, DOCX e TXT; HTML → Markdown |
+| **Áudio** (com ffmpeg) | MP3, WAV, OGG, FLAC, M4A, AAC, OPUS, WMA, AIFF; áudio de qualquer vídeo; áudio → MP4 (tela preta) |
+| **Vídeo** (com ffmpeg) | MP4, MKV, WEBM, AVI, MOV, WMV, MPEG, M4V; vídeo → GIF animado e → imagem |
+| **Impressão 3D** (em mm) | STL, OBJ, 3MF, PLY, OFF e GLB entre si; modelo → imagem PNG/JPG; **SVG → STL/3MF** (áreas preenchidas viram peça com espessura); **foto → litofania** STL/3MF; **SVG ↔ DXF** (corte a laser); SVG → PNG/JPG/WEBP/PDF |
 
-Lista completa, gerada a partir do código: [docs/FORMATOS.md](docs/FORMATOS.md)
-(449 conversões). As que não dependem do Word/PowerPoint são testadas de
-verdade no CI (Windows, Mac e Linux; as do `textutil`, só no Mac); as do
-Word/PowerPoint, com o programa simulado — o CI não tem Office.
+Lista completa, gerada a partir do código: [docs/FORMATOS.md](docs/FORMATOS.md).
+Tudo o que não depende do Word/PowerPoint é executado de verdade nos testes
+automáticos (Windows, Mac e Linux); Word e PowerPoint são testados com o
+programa simulado, porque o servidor de testes não tem Office.
 
-## Instalar no Windows
+## Três jeitos de converter
 
-1. Baixe o [**LotusSetup.exe**](https://github.com/Kiuwar/Lotus/releases/latest/download/LotusSetup.exe).
-2. Execute o `LotusSetup.exe`. Não precisa de administrador: instala só
-   para o seu usuário em `%LOCALAPPDATA%\Programs\Lotus`.
-3. Como o instalador não tem assinatura digital, o Windows SmartScreen pode
-   mostrar "O Windows protegeu o computador". Clique em *Mais informações* →
-   *Executar assim mesmo*.
-4. Na instalação você escolhe: menu do botão direito, painel flutuante
-   (Ctrl+Shift+clique), **ícone ao lado do relógio** e atalho na área de
-   trabalho.
+**1. Janela do Lotus.** Clique em *＋ Adicionar arquivos…* (ou arraste os
+arquivos sobre o ícone do Lotus), escolha em *Converter para* e clique em
+*Converter*. O menu só mostra formatos que servem para **todos** os arquivos
+adicionados; quando um arquivo não tem conversão, a coluna *Situação* diz o
+motivo.
 
-Para remover: *Configurações → Aplicativos → Lotus → Desinstalar*. Isso
-também remove o menu, o painel flutuante e o início automático. Sua
-configuração (`%APPDATA%\Lotus`) e os arquivos convertidos são mantidos.
+**2. Clique direito no arquivo.**
+- **Windows:** *Converter para* → formato (ou *Escolher formato…*). No
+  Windows 11 fica em *Mostrar mais opções*. Instalar/remover: *Ferramentas*.
+- **Mac:** *Ações Rápidas → Converter com Lotus* (instalada na 1ª abertura).
+  Dá para criar um atalho de teclado para ela em *Ajustes do Sistema →
+  Teclado → Atalhos de Teclado… → Serviços → Arquivos e Pastas*.
 
-## Instalar no Mac
+**3. Painel flutuante (atalho).** No Explorer ou na área de trabalho,
+**Ctrl+Shift+clique** num arquivo (no Mac, no Finder ou na Mesa,
+**⌥ Option+⇧ Shift+clique**). Aparece o painel **Vidro**: o arquivo no
+centro e cada formato como uma **pílula de vidro** em volta, como os botões
+do iPhone. Passe o mouse e clique para converter: a pílula mostra "…" e
+depois ✓ (ou ✕ com a explicação). O painel some depois do ✓, com *Esc*,
+clicando fora ou após 15 s. Com mais de 18 formatos, *Mais…* abre a lista
+completa.
+- No Windows o vidro desfoca o que está atrás do painel de verdade; no Mac
+  ele é translúcido (desfocar o fundo lá exigiria a permissão de Gravação de
+  Tela). O texto é ajustado para ficar legível sobre qualquer fundo.
+- Atalho configurável em *Ferramentas → Atalho do painel flutuante…*:
+  Ctrl/Shift/Alt/Win com qualquer botão do mouse ou com uma tecla (tecla só
+  no Windows). Atalhos que atrapalhariam o uso normal são recusados.
 
-1. Na página **Releases**, baixe o `.dmg` do seu Mac:
-   - **Lotus-Mac-AppleSilicon.dmg** para Macs com chip M1, M2, M3, M4…
-   - **Lotus-Mac-Intel.dmg** para Macs com processador Intel.
-   (Menu  → Sobre Este Mac → "Chip" ou "Processador".)
-2. Abra o `.dmg` e arraste o **Lotus** para **Aplicativos**.
-3. Na 1ª abertura o macOS bloqueia apps sem assinatura paga da Apple:
-   **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**.
-4. Na primeira vez que você abre o Lotus, ele já instala a **Ação Rápida** do
-   Finder (clique direito num arquivo → **Ações Rápidas → Converter com
-   Lotus**, sem nenhuma permissão) e põe o **ícone da flor na barra de menus**
-   (no alto da tela). Pelo ícone: *Converter os arquivos selecionados no
-   Finder…* — também sem a permissão de Acessibilidade.
-5. A janela **Ativar o Lotus no Mac** mostra os passos, cada um com um botão,
-   e marca ✓ sozinha conforme você avança:
-   1. **Ligar agora** o painel por atalho (⌥ Option+⇧ Shift+clique; vem
-      desligado);
-   2. **Abrir Acessibilidade** → ative o **Lotus** (o Lotus tenta de novo
-      sozinho a cada 2 segundos; não é preciso desligar e ligar o painel);
-   3. **Testar o Finder** → quando o Mac perguntar se o Lotus pode controlar
-      o "Finder", clique em **Permitir** (o Lotus só lê quais arquivos estão
-      selecionados);
-   4. **Ação Rápida** (já instalada na 1ª abertura);
-   5. *(opcional)* **Atalho de teclado para a Ação Rápida**, sem permissões:
-      *Teclado → Atalhos de Teclado… → Serviços → Arquivos e Pastas →
-      "Converter com Lotus"*, clique duas vezes à direita e aperte, por
-      exemplo, ⌃⌥C.
-   Para reabrir: *Ferramentas → Ativar o painel no Mac…*, o ícone da barra de
-   menus, ou a linha "Painel por atalho: …" no pé da janela principal.
-   Para tirar o ícone da barra de menus: *Ferramentas → Ícone na barra de
-   menus* (ou pelo próprio menu do ícone).
+**Aparência (*Ferramentas → Aparência…*):** estilo do painel (**Vidro**,
+Radial ou Cartão), cor do vidro (Azul, Neutro, Rosa, Verde, Roxo, Grafite ou
+qualquer cor), intensidade (de limpo a fosco), animação de entrada, tamanho e
+claro/escuro — com prévia grande ao vivo. Radial e Cartão têm temas prontos e
+cores por grupo de formato.
 
-**⌥ Option+⇧ Shift+clique não faz nada?** Abra o Lotus → *Ferramentas →
-Diagnóstico do painel flutuante (Mac)…*. Ele mostra, item por item, o que
-falta (painel desligado, Acessibilidade, Automação do Finder, app rodando de
-dentro do .dmg…) e como resolver. Não altera nada e não usa a internet. Os
-casos mais comuns:
-
-- **Painel desligado**: passo 4.1.
-- **Atalho configurado como tecla**: no Mac o painel só funciona com
-  clique (*Ferramentas → Atalho do painel flutuante…*).
-- **Atualizou o Lotus e a permissão "não pega"**: o Lotus não tem assinatura
-  paga da Apple, e cada versão tem uma assinatura nova. Em *Acessibilidade*,
-  selecione Lotus, clique em **−**, depois em **+** e escolha
-  `/Applications/Lotus.app`. (A janela de ativação sugere isso sozinha se a
-  permissão não chegar.)
-- **Lotus aberto de dentro do .dmg ou da pasta Downloads**: mova para
-  *Aplicativos* e abra de lá.
-
-No Mac a janela usa a moldura nativa do sistema (já arredondada, com as
-bolinhas). Conversões pelo Microsoft Word existem só no Windows; no Mac,
-DOCX, DOC, RTF e ODT são convertidos pelo `textutil` do próprio macOS.
-
-## Como usar
-
-**Interface:** abra `Lotus.exe`, clique em *Adicionar arquivos…*,
-escolha o formato em *Converter para* e clique em *Converter*. O menu só
-mostra formatos que servem para **todos** os arquivos selecionados.
-
-**Botão direito do mouse:** no menu *Ferramentas* do Lotus, clique em
-*Instalar menu do botão direito* (ou rode `conversor-cli.exe --instalar-menu`).
-Depois, clique com o botão direito em qualquer arquivo suportado →
-**Converter para** → escolha o formato. A conversão acontece na hora e um
-aviso aparece no canto da tela. O item **Escolher formato…** abre uma
-janela com um botão para cada formato possível.
-
-- No **Windows 11**, o item fica em *Mostrar mais opções* (ou Shift+F10).
-  O menu novo do Windows 11 só aceita extensões empacotadas como MSIX.
-- Não precisa de administrador: é instalado só para o seu usuário.
-- Para remover: *Ferramentas → Remover menu do botão direito*.
-- Com vários arquivos selecionados, o Explorer abre uma conversão por
-  arquivo (um aviso para cada um).
-
-**Painel flutuante (Ctrl+Shift+clique):** numa pasta do Explorer **ou na
-área de trabalho**, segure **Ctrl+Shift** e clique num arquivo: aparece, em
-volta do cursor, um painel redondo com os formatos **separados por grupo**
-(Imagem, Documento, Texto e dados, Áudio, Vídeo), cada um num arco colorido
-próprio. Passe o mouse para destacar e clique para converter: a caixa mostra
-"…" e depois ✓ (ou ✕ com a explicação). O painel some sozinho após o ✓, com
-*Esc*, clicando fora, clicando no centro ou após 15 s sem uso. Com mais de 12
-formatos, a caixa **Mais…** abre a lista completa.
-
-- O atalho é configurável em *Ferramentas → Atalho do painel flutuante…*:
-  qualquer combinação de Ctrl/Shift/Alt/Win com qualquer botão do mouse
-  (esquerdo, direito, meio, laterais) **ou** com uma tecla (A–Z, 0–9,
-  F1–F24). Com tecla, o painel atua nos arquivos já selecionados.
-- O app recusa atalhos que travariam o uso normal (ex.: clique esquerdo sem
-  nenhuma tecla) e avisa sobre conflitos (ex.: Ctrl+clique, que o Windows
-  usa para selecionar vários arquivos).
-- Na área de trabalho, só vale o clique **sobre os ícones**.
-- Roda em segundo plano (processo `Lotus.exe`) e inicia com o Windows
-  enquanto estiver ligado. Para desligar: desmarque a opção na mesma janela.
-
-**Ícone ao lado do relógio (Windows):** a flor do Lotus fica na área de
-notificação, ao lado do relógio, desde que o Windows inicia.
-- **Duplo clique:** abre o Lotus.
-- **Clique direito:** *Converter arquivos…*, ligar/desligar o *Painel por
-  atalho*, *Configurar atalho…*, *Aparência…* e *Fechar o Lotus* (ele volta
-  ao ligar o computador).
-- O Windows escolhe se o ícone aparece na barra ou dentro da setinha **^**:
-  nenhum programa pode forçar isso. Para deixá-lo sempre visível, arraste o
-  ícone para fora da setinha, ou ligue-o em *Configurações → Personalização
-  → Barra de tarefas → Selecionar quais ícones aparecem na barra de tarefas*.
-- Para desligar ou religar: no Lotus, *Ferramentas → Ícone ao lado do relógio*.
-
-**Aparência (Ferramentas → Aparência…):** estilo macOS, com prévia ao vivo.
-- Temas prontos: **Sistema, Grafite, Azul Mac, Rosa, Verde**.
-- Claro/escuro: segue o Windows ou fixo.
-- Cores: destaque, fundo e **uma cor por grupo** de formatos.
-- Tamanho (pequeno/médio/grande), opacidade do fundo (60–100%) e forma
-  (radial ou cartão em lista).
-- A janela principal tem moldura própria com cantos arredondados e as
-  "bolinhas" de fechar/minimizar/maximizar. Se preferir a moldura padrão do
-  Windows, há uma opção na mesma janela.
+**Ícone sempre à mão:** no Windows, a flor fica **ao lado do relógio**
+(duplo clique abre o Lotus; clique direito: converter, painel, atalho,
+aparência). No Mac, fica na **barra de menus**, com *Converter os arquivos
+selecionados no Finder…* — que funciona sem a permissão de Acessibilidade.
 
 **Linha de comando:**
 
 ```
 conversor-cli.exe foto.png planilha.csv --para pdf
-conversor-cli.exe dados.json --para xlsx --saida C:\Saida
+conversor-cli.exe logo.svg --para stl --espessura 3 --largura 50
+conversor-cli.exe foto.jpg --para stl --modo litofania
 conversor-cli.exe --listar
 ```
 
+## Instalar no Windows
+
+1. Baixe o [**LotusSetup.exe**](https://github.com/Kiuwar/Lotus/releases/latest/download/LotusSetup.exe)
+   e execute. Não precisa de administrador (instala em
+   `%LOCALAPPDATA%\Programs\Lotus`).
+2. O instalador não tem assinatura digital paga: se o SmartScreen avisar,
+   clique em *Mais informações → Executar assim mesmo*.
+3. Escolha: menu do botão direito, painel flutuante, ícone ao lado do relógio
+   e atalho na área de trabalho.
+
+Para remover: *Configurações → Aplicativos → Lotus → Desinstalar* (remove
+menu, painel e início automático; sua configuração em `%APPDATA%\Lotus` e os
+arquivos convertidos ficam).
+
+## Instalar no Mac
+
+1. Baixe o `.dmg` do seu Mac (Menu  → Sobre Este Mac → "Chip" ou
+   "Processador"), abra e arraste o **Lotus** para **Aplicativos**.
+2. Na 1ª abertura: *Ajustes do Sistema → Privacidade e Segurança → Abrir
+   Mesmo Assim* (o Lotus não tem assinatura paga da Apple).
+3. A janela **Ativar o Lotus no Mac** guia os passos e marca ✓ sozinha:
+   ligar o painel; permitir **Acessibilidade** (para o ⌥⇧+clique); permitir
+   que o Lotus leia a seleção do **Finder**; Ação Rápida; atalho de teclado
+   (opcional). Para reabrir: *Ferramentas → Ativar o painel no Mac…*.
+
+**⌥⇧+clique não faz nada?** *Ferramentas → Diagnóstico do painel flutuante
+(Mac)…* mostra, item por item, o que falta e como resolver. Casos comuns:
+painel desligado; atalho salvo como tecla (no Mac só clique); depois de
+atualizar, a permissão "não pega" — em *Acessibilidade*, selecione Lotus,
+clique em **−**, depois em **+** e escolha `/Applications/Lotus.app`; Lotus
+aberto de dentro do `.dmg` ou de Downloads — mova para *Aplicativos*.
+
+## Impressão 3D
+
+- Tudo em **milímetros**, como nos fatiadores (Cura, PrusaSlicer, Bambu
+  Studio, Orca). STL e OBJ não guardam unidade; 3MF é convertido; GLB é em
+  metros e vira mm.
+- **SVG → STL/3MF:** as áreas **preenchidas** viram peça (2 mm por padrão;
+  `--espessura`, `--largura`); furos do desenho continuam furos.
+- **Foto → litofania:** escuro fica mais grosso; 100 mm de largura, de 0,8 a
+  3,0 mm. Imprima em branco, de pé, com 100% de preenchimento, e veja contra a
+  luz. `--modo relevo` faz o contrário (claro = alto).
+- Avisos quando algo se perde: peças unidas, cores, malha aberta (o fatiador
+  costuma reparar).
+- **Fora do Lotus:** fatiar (G-code) é com o seu fatiador; STEP, com o seu
+  programa de CAD.
+
 ## Comportamentos importantes
 
-- **PDF → PNG/JPG:** PDF de 1 página vira um arquivo; com várias páginas, o
-  Lotus cria a pasta `<nome> - páginas PNG` com `pagina_001.png`, `pagina_002.png`…
-- **PDF → TXT:** o texto do PDF é copiado como está. Páginas **escaneadas**
-  (só imagem) são lidas por **OCR** — o reconhecimento de texto que já vem
-  no **Windows 10/11** e no **Mac**, sem internet. O Lotus avisa quais
-  páginas foram lidas assim: confira nomes, números e acentos, porque o OCR
-  pode errar (e piora com escaneamento torto, borrado ou manuscrito). No
-  Windows, o português precisa estar instalado em *Configurações → Hora e
-  idioma → Idioma*; sem ele o Lotus usa o idioma do Windows e avisa.
-- **PDF com senha:** não é convertido; o Lotus explica como gerar uma cópia sem senha.
-- **Word:** DOCX → PDF e PDF → DOCX usam o Microsoft Word do seu computador
-  (sem Word, essas opções aparecem como indisponíveis). No PDF → DOCX o
-  layout é reconstruído pelo Word e pode mudar: confira o documento.
-- Se um arquivo não tem conversão, a coluna *Situação* e a área ao lado de
-  "Converter para" dizem o motivo.
-
-- O arquivo original **nunca** é alterado.
-- Se o destino já existe, o novo recebe ` (1)`, ` (2)`… (a menos que você
-  marque *Sobrescrever*).
+- O arquivo original **nunca** é alterado. Se o destino já existe, o novo
+  recebe ` (1)`, ` (2)`… (a menos que você marque *Sobrescrever*).
 - O formato é identificado pelo **conteúdo**: um JPG renomeado para `.png` é
   tratado como JPG (com aviso).
-- A saída é reaberta e validada antes de ser salva; se estiver corrompida,
-  nada é gravado e o erro aparece.
-- Avisos aparecem sempre que algo se perde: transparência → fundo branco em
-  JPG/BMP/PDF, só o 1º quadro de GIF animado, só a 1ª planilha do XLSX.
-- CSV: valores ficam como **texto** (CEP `01234` não perde o zero). O CSV
-  gerado usa `;` e UTF-8 com BOM, o que o Excel em português abre direto.
-  Textos começando com `=` são gravados no XLSX como texto, não como fórmula.
-
-## Quando algo dá errado (reparação de erros)
-
-- **Mensagens com solução:** arquivo aberto em outro programa, sem
-  permissão, disco cheio, memória insuficiente — cada erro diz o que fazer.
-- **Reparo automático, sempre com aviso:**
-  - imagem danificada/incompleta (download interrompido): a parte
-    recuperável é convertida;
-  - destino aberto em outro programa (ex.: Excel) com *Sobrescrever*
-    marcado: salva com outro nome em vez de perder a conversão;
-  - menu do botão direito desatualizado (o Lotus mudou de pasta): é
-    corrigido sozinho ao abrir o Lotus.
-- **Ferramentas → Diagnosticar e reparar** (ou `conversor-cli.exe --reparar`):
-  confere o menu, o ffmpeg e as pastas de log/temporária, e corrige o menu.
-- **Log local:** detalhes técnicos ficam em `%LOCALAPPDATA%\Lotus\lotus.log`
-  (*Ferramentas → Abrir pasta do log*). Nunca é enviado a lugar nenhum.
-
-O que **não** é "reparado" de propósito: dados de planilha/JSON inválidos
-não são corrigidos por adivinhação, porque isso poderia mudar o conteúdo
-sem você perceber.
-
-## ffmpeg (áudio e vídeo)
-
-O ffmpeg não vem embutido. Sem ele, as conversões de mídia ficam
-indisponíveis (o restante funciona). Para ativar, faça **uma** das opções:
-
-1. instale pelo winget (`winget search ffmpeg` mostra os pacotes; um
-   comum é `Gyan.FFmpeg`) ou baixe de https://ffmpeg.org/download.html e
-   coloque a pasta `bin` no PATH;
-2. coloque `ffmpeg.exe` e `ffprobe.exe` numa pasta `ffmpeg\` ao lado do
-   `Lotus.exe`;
-3. defina a variável `CONVERSOR_FFMPEG` com o caminho do `ffmpeg.exe`.
-
-No Mac: `brew install ffmpeg` (Homebrew). Esse pacote não traz mais o
-codificador libvorbis; o Lotus então gera OGG com o codificador Vorbis
-interno do ffmpeg (estéreo, qualidade um pouco menor) e avisa. Para a
-melhor qualidade em OGG: `brew install ffmpeg-full`.
+- A saída é reaberta e conferida antes de ser salva; se estiver corrompida,
+  nada é gravado.
+- Sempre que algo se perde, o Lotus avisa: transparência → fundo branco, só
+  o 1º quadro de GIF, só a 1ª aba do XLSX em CSV/JSON, layout do Word no PDF
+  simples, páginas lidas por OCR (confira nomes, números e acentos).
+- **PDF → PNG/JPG** com várias páginas cria a pasta `<nome> - páginas PNG`.
+  **PDF com senha** não é convertido; o Lotus explica como gerar uma cópia.
+- **OCR:** no Windows, o português precisa estar instalado em *Configurações
+  → Hora e idioma → Idioma*; sem ele o Lotus usa o idioma do Windows e avisa.
+- **CSV:** valores ficam como texto (CEP `01234` não perde o zero); o CSV
+  gerado usa `;` e UTF-8 com BOM, que o Excel em português abre direto.
 
 ## Atualizar
 
-*Ferramentas → Procurar atualização…*: o Lotus mostra se há versão nova e o
-que mudou; **Baixar e instalar** baixa o instalador do seu sistema, confere o
-código SHA-256 publicado (se não bater, apaga e não instala) e pede para
-**Reiniciar agora**. Ele fecha, instala por cima — sem desinstalar — e abre
-de novo. Suas configurações (painel, atalho, aparência, menu) ficam como
-estavam. Uma vez por mês o Lotus só **pergunta** se você quer procurar.
+*Ferramentas → Procurar atualização…* mostra se há versão nova e o que mudou.
+**Baixar e instalar** baixa o instalador do seu sistema, confere o SHA-256
+publicado (se não bater, apaga e não instala) e pede para **Reiniciar
+agora**: o Lotus fecha, instala por cima — sem desinstalar — e abre de novo,
+com suas configurações intactas. Uma vez por mês ele só **pergunta** se você
+quer procurar.
 
-No Mac, como o Lotus não tem assinatura paga da Apple, depois de atualizar o
-macOS pode pedir de novo a permissão de Acessibilidade (a janela *Ativar o
-painel no Mac* mostra como).
+## Ajuda e problemas
+
+- **Ajuda** dentro do app: *Ferramentas → Ajuda* ou **F1** (funciona sem
+  internet).
+- Cada erro diz **o que fazer** (arquivo aberto em outro programa, sem
+  permissão, disco cheio…). Reparos automáticos, sempre avisados: imagem
+  incompleta (converte a parte recuperável), destino em uso (salva com outro
+  nome), menu do botão direito desatualizado (corrigido ao abrir o Lotus).
+- *Ferramentas → Diagnosticar e reparar* (ou `conversor-cli.exe --reparar`).
+- Log local em `%LOCALAPPDATA%\Lotus\lotus.log` (Mac:
+  `~/Library/Logs/Lotus/lotus.log`); *Ferramentas → Abrir pasta do log*.
+
+## ffmpeg (áudio e vídeo)
+
+O ffmpeg não vem junto; sem ele só as conversões de mídia ficam
+indisponíveis. **Windows:** `winget install Gyan.FFmpeg` (ou coloque
+`ffmpeg.exe` e `ffprobe.exe` numa pasta `ffmpeg\` ao lado do `Lotus.exe`, ou
+defina `CONVERSOR_FFMPEG`). **Mac:** `brew install ffmpeg` (para OGG de
+melhor qualidade, `brew install ffmpeg-full`).
 
 ## Privacidade (LGPD)
 
-O processamento é 100% local: as conversões não usam a internet, o Lotus não
-coleta dados e não tem telemetria. Os arquivos não saem do computador.
+As conversões são 100% locais: o Lotus não envia arquivos, não coleta dados
+e não tem telemetria.
 
-**Única exceção, só quando você pede: "Procurar atualização".** Ao clicar
-(ou responder "Sim" ao lembrete mensal, que apenas pergunta), o Lotus
-consulta a página de versões do projeto no GitHub e, se você aceitar, baixa
-o instalador. Nenhum arquivo ou dado seu é enviado; o GitHub (Microsoft)
-recebe apenas o seu endereço IP e a identificação "Lotus/versão", como em
-qualquer acesso a um site. Sem o seu clique, o Lotus não acessa a internet.
+**Única exceção, só quando você pede: "Procurar atualização".** O Lotus
+consulta a página de versões no GitHub e, se você aceitar, baixa o
+instalador. Nenhum dado seu é enviado; o GitHub (Microsoft) recebe apenas o
+seu endereço IP, como em qualquer site. O lembrete mensal só pergunta.
 
-O painel flutuante usa um "gancho de mouse" do Windows para perceber o
-atalho. Ele só olha botões do mouse e o estado de Ctrl/Shift/Alt/Win no
-momento do clique; **não lê o que você digita**, não grava e não envia
-nada. Quando o atalho é uma tecla, o Windows avisa o Lotus apenas daquela
-combinação (RegisterHotKey). Alguns antivírus desconfiam de programas com
-gancho de mouse; se o seu bloquear, é esse o motivo.
-O log de erros fica só no seu computador e contém nomes de arquivos; pode
-ser apagado a qualquer momento.
+O painel flutuante percebe o atalho pelos botões do mouse e pelas teclas
+Ctrl/Shift/Alt/Win no momento do clique; **não lê o que você digita**. No
+Windows, o vidro "fotografa" só a área onde o painel vai aparecer, só na
+memória, para desfocar — nada é gravado nem enviado. O log fica só no seu
+computador e pode ser apagado.
+
+## Limitações
+
+- PDF idêntico ao Word/PowerPoint exige o programa instalado (Windows); sem
+  ele o Lotus faz um PDF simples e avisa. PDF → DOCX só com o Word.
+- OCR existe no Windows 10/11 e no Mac (no Linux, não).
+- G-code e STEP não são convertidos (use o fatiador e o CAD).
+- Sem assinatura paga (Microsoft/Apple): avisos de segurança na 1ª abertura,
+  e no Mac a permissão de Acessibilidade pode precisar ser refeita após
+  atualizar.
 
 ## Desenvolvimento
 
@@ -302,23 +213,21 @@ ser apagado a qualquer momento.
 python -m venv .venv
 .venv\Scripts\activate            # Linux/macOS: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest -q
+python -m pytest -q               # Linux: xvfb-run -a python -m pytest -q
 python -m conversor               # abre a interface
 ```
 
-O executável para Windows é gerado pelo GitHub Actions
-(`.github/workflows/ci.yml`, artefato **Lotus-windows**), que
-também testa o `.exe` empacotado antes de publicá-lo. Para gerar localmente
-no Windows:
+Instaladores e `.dmg` são gerados e testados pelo GitHub Actions
+(`.github/workflows/ci.yml`) em Windows, Mac Apple Silicon e Mac Intel,
+inclusive o programa empacotado, a instalação por cima (atualização) e a
+desinstalação. Para gerar localmente no Windows:
 
 ```
 pyinstaller --windowed --onedir --name Lotus --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_gui.py
 pyinstaller --console --onefile --name conversor-cli --exclude-module pillow_heif --collect-data trimesh --collect-data reportlab --collect-data ezdxf --paths . packaging/app_cli.py
 ```
 
-O `pillow-heif` (em `requirements-dev.txt`) só cria as amostras HEIC dos
-testes; ele traz o codificador x265 (GPL) e é excluído do app empacotado.
-Licenças de terceiros: [docs/LICENCAS.md](docs/LICENCAS.md).
-
-Antes de pedir mudanças ao Claude, veja [CLAUDE.md](CLAUDE.md) e
+O `pillow-heif` e o `python-docx` (em `requirements-dev.txt`) são só para os
+testes. Licenças de terceiros: [docs/LICENCAS.md](docs/LICENCAS.md). Regras
+do projeto e por que ele é assim: [CLAUDE.md](CLAUDE.md) e
 [docs/ANALISE.md](docs/ANALISE.md).
