@@ -411,6 +411,22 @@ Erros pegos antes da versão:
 - `hdiutil create` falha de forma intermitente ("Resource busy") no Mac
   Intel do CI: até 3 tentativas.
 
+## 4.10. Versões 0.10.1 e 0.11.0: caminho longo e separar/juntar PDF
+
+- **0.10.1 (relato real):** "X Administrativo OK.pdf não foi encontrado" ao
+  converter PDF → JPG. Todo `FileNotFoundError` era atribuído à ORIGEM, mesmo
+  quando a falha era gravar a saída. Causa provável (não reproduzida: sem
+  Windows aqui): caminho > 260 caracteres (OneDrive). Correção: mensagem diz o
+  que falhou (`errors._mesmo`), caminhos longos ganham `\\?\`
+  (`engine.caminho_estendido`) e o PDF é aberto pelo Python, não pelo pdfium.
+- **Separar/juntar** não cabem no registro (não são formato → formato):
+  `converters/pdf_paginas.py` (pypdf) + `engine.separar_pdf/juntar_pdf`, com a
+  mesma gravação segura (temporário, validação, nome único).
+- **Seleção múltipla no Explorer** abre um processo por arquivo
+  (`MultiSelectModel=Player`); `agrupar.py` reúne a seleção por uma fila em
+  disco (o 1º processo é o dono). Testado com relógio simulado; o comportamento
+  real do Explorer é teste manual.
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office

@@ -101,6 +101,8 @@ class App(ttk.Frame):
         BotaoPilula(bar, "＋  Adicionar arquivos…", command=self.add_dialog, pal=p).pack(side="left")
         BotaoPilula(bar, "Remover selecionados", command=self.remove_selected, pal=p).pack(side="left", padx=8)
         BotaoPilula(bar, "Limpar", command=self.clear, pal=p).pack(side="left")
+        BotaoPilula(bar, "Juntar em um PDF", command=self.juntar_pdf, pal=p).pack(side="right")
+        BotaoPilula(bar, "Separar PDF…", command=self.separar_pdf, pal=p).pack(side="right", padx=8)
 
         lista = Cartao(self, p, pad=6)
         lista.fixar_altura()
@@ -389,6 +391,41 @@ class App(ttk.Frame):
             self.target.set(targets[0].upper() if targets else "")
         motivo = motivo_sem_destino(list(self.formats.values())) if self.files else None
         self.hint.configure(text=motivo or "")
+
+    # ---------- PDF: separar e juntar ----------
+
+    def _pdfs_e_imagens(self) -> list[str]:
+        from conversor.converters.images import IMAGES
+
+        ok = set(IMAGES) | {"pdf", "heic", "avif"}
+        return [self.files[i] for i in self.tree.get_children() if self.formats.get(i) in ok]
+
+    def separar_pdf(self) -> None:
+        from conversor.ui.janela_pdf import JanelaSeparar
+
+        sel = [i for i in self.tree.selection() if self.formats.get(i) == "pdf"]
+        pdfs = sel or [i for i in self.tree.get_children() if self.formats.get(i) == "pdf"]
+        if len(pdfs) != 1:
+            messagebox.showinfo("Lotus", "Adicione um PDF (ou selecione um na lista) para separar."
+                                if not pdfs else "Selecione na lista qual PDF separar.")
+            return
+        out_dir = None if self.same_dir.get() else (self.out_dir.get().strip() or None)
+        return JanelaSeparar(self.winfo_toplevel(), self.files[pdfs[0]], self._pdf_pronto, out_dir)
+
+    def juntar_pdf(self) -> None:
+        from conversor.ui.janela_pdf import JanelaJuntar
+
+        arquivos = self._pdfs_e_imagens()
+        if len(arquivos) < 2:
+            messagebox.showinfo("Lotus", "Adicione pelo menos 2 arquivos (PDFs ou imagens) para juntar.")
+            return
+        return JanelaJuntar(self.winfo_toplevel(), arquivos, self._pdf_pronto)
+
+    def _pdf_pronto(self, r) -> None:
+        for aviso in r.avisos:
+            self._log(f"AVISO  {aviso}")
+        for saida in r.saidas:
+            self._log(f"OK  {saida}")
 
     # ---------- saída ----------
 

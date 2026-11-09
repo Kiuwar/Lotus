@@ -23,6 +23,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--largura", type=float, help="impressão 3D, em mm: largura final da peça (litofania: padrão 100)")
     p.add_argument("--modo", choices=["litofania", "relevo"],
                    help="imagem → STL: litofania (escuro = grosso, padrão) ou relevo (claro = alto)")
+    p.add_argument("--separar", metavar="PAGINAS",
+                   help='PDF: um PDF por intervalo (ex.: "1-3, 4-9, 10-")')
+    p.add_argument("--extrair", metavar="PAGINAS",
+                   help='PDF: um PDF só com estas páginas, nesta ordem (ex.: "2, 5-7")')
+    p.add_argument("--juntar", metavar="SAIDA.pdf", nargs="?", const="",
+                   help="junta os arquivos (PDF e imagens), na ordem dada, num PDF")
     p.add_argument("--listar", action="store_true", help="lista as conversões disponíveis")
     p.add_argument("--instalar-menu", action="store_true", help="instala o menu do botão direito (Windows)")
     p.add_argument("--remover-menu", action="store_true", help="remove o menu do botão direito (Windows)")
@@ -31,6 +37,32 @@ def build_parser() -> argparse.ArgumentParser:
                    help="mostra por que o painel por atalho não abre no Mac (não altera nada)")
     p.add_argument("--versao", action="version", version=f"%(prog)s {__version__}")
     return p
+
+
+def _paginas(args) -> int:
+    from conversor.core import engine
+
+    if not args.arquivos:
+        print("Informe o(s) arquivo(s).", file=sys.stderr)
+        return 2
+    try:
+        if args.juntar is not None:
+            r = engine.juntar_pdf(args.arquivos, args.juntar or None)
+        else:
+            if len(args.arquivos) != 1:
+                print("Separar/extrair: informe um PDF por vez.", file=sys.stderr)
+                return 2
+            modo = engine.SEPARAR_EXTRAIR if args.extrair is not None else engine.SEPARAR_INTERVALOS
+            r = engine.separar_pdf(args.arquivos[0], args.extrair if args.extrair is not None
+                                   else args.separar, modo, args.out_dir)
+    except ConversionError as e:
+        print(f"ERRO  {e}", file=sys.stderr)
+        return 1
+    for aviso in r.avisos:
+        print(f"AVISO {aviso}")
+    for saida in r.saidas:
+        print(f"OK    {saida}")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,6 +79,9 @@ def main(argv: list[str] | None = None) -> int:
             flag = "" if c.available() else f"  (indisponível: {c.notes or 'componente ausente'})"
             print(f"{c.category:10} {c.source:>5} -> {c.target}{flag}")
         return 0
+
+    if args.separar is not None or args.extrair is not None or args.juntar is not None:
+        return _paginas(args)
 
     if args.diagnostico_mac:
         if sys.platform != "darwin":

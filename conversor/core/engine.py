@@ -192,3 +192,136 @@ def convert_file(
 
     warnings.extend(options.get("_warnings", []))
     return Result(src, final, source_fmt, target, warnings)
+
+
+# ---------------------------------------------------------------------------
+# Separar e juntar PDFs (operações de página; mesma gravação segura acima)
+
+SEPARAR_INTERVALOS = "intervalos"  # um PDF por intervalo
+SEPARAR_EXTRAIR = "extrair"        # um PDF só com as páginas escolhidas
+
+
+@dataclass
+class ResultadoPaginas:
+    saidas: list[Path]
+    avisos: list[str] = field(default_factory=list)
+
+
+def _validar_pdf(caminho: Path) -> None:
+    problema = validate.check(caminho, "pdf")
+    if problema:
+        raise ConversionError(f"PDF gerado inválido ({caminho.name}): {problema}")
+
+
+def _como_conversao(fn):
+    """Mesmo tratamento de erro do convert_file: mensagem clara, detalhe no log."""
+    from conversor.core.errors import ConversaoPaginasErro
+
+    def envolvida(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except ConversionError:
+            raise
+        except ConversaoPaginasErro as e:
+            raise ConversionError(str(e)) from e
+        except Exception as e:
+            get_logger().exception("%s falhou", fn.__name__)
+            origem = args[0] if args and isinstance(args[0], Path) else None
+            raise ConversionError(explain(e, origem)) from e
+    envolvida.__name__ = fn.__name__
+    envolvida.__doc__ = fn.__doc__
+    return envolvida
+
+
+def _exigir_pdf(src: Path) -> None:
+    try:
+        fmt = detect(src).fmt
+    except DetectionError as e:
+        raise ConversionError(str(e)) from e
+    if fmt != "pdf":
+        raise ConversionError(f"{src.name} não é um PDF (é {fmt.upper()}).")
+
+
+@_como_conversao
+def separar_pdf(src: Path | str, paginas: str, modo: str = SEPARAR_INTERVALOS,
+                out_dir: Path | str | None = None) -> ResultadoPaginas:
+    """Separa `src` sem alterá-lo. modo=intervalos: um PDF por intervalo, numa
+    pasta "<nome> - partes"; modo=extrair: um PDF "<nome> (p2,5-7).pdf"."""
+    from conversor.converters import pdf_paginas as pp
+
+    src = caminho_estendido(Path(src))
+    _exigir_pdf(src)
+    intervalos = pp.interpretar_paginas(paginas, pp.total_paginas(src))
+    out_dir = caminho_estendido(Path(out_dir) if out_dir else src.parent)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    avisos: list[str] = []
+    tmp = out_dir / f"{src.stem}.tmp-{uuid.uuid4().hex[:8]}"
+    tmp.mkdir()
+    try:
+        if modo == SEPARAR_EXTRAIR:
+            nome = ",".join(pp.rotulo(i)[1:] for i in intervalos)
+            arq = tmp / f"{src.stem} (p{nome}).pdf"
+            pp.gravar_paginas(src, intervalos, arq, avisos)
+            _validar_pdf(arq)
+            final = _unique_path(out_dir / arq.name)
+            os.replace(arq, final)
+            return ResultadoPaginas([final], _sem_repetidos(avisos))
+        if modo != SEPARAR_INTERVALOS:
+            raise ConversionError(f"Modo de separação desconhecido: {modo}.")
+        for intervalo in intervalos:
+            arq = tmp / f"{src.stem} ({pp.rotulo(intervalo)}).pdf"
+            if arq.exists():  # intervalo repetido: um arquivo só
+                continue
+            pp.gravar_paginas(src, [intervalo], arq, avisos)
+            _validar_pdf(arq)
+        pasta = _unique_dir(out_dir / f"{src.stem} - partes")
+        os.replace(tmp, pasta)
+        ordem = {f"{src.stem} ({pp.rotulo(i)}).pdf": n for n, i in enumerate(intervalos)}
+        saidas = sorted(pasta.iterdir(), key=lambda p: ordem.get(p.name, 0))
+        return ResultadoPaginas(saidas, _sem_repetidos(avisos))
+    finally:
+        if tmp.exists():
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+@_como_conversao
+def juntar_pdf(arquivos: list[Path | str], destino: Path | str | None = None) -> ResultadoPaginas:
+    """Junta PDFs e imagens, NA ORDEM DADA, num PDF novo. Originais intactos."""
+    from conversor.converters import pdf_paginas as pp
+    from conversor.converters.images import IMAGES
+
+    caminhos = [caminho_estendido(Path(a)) for a in arquivos]
+    if len(caminhos) < 2:
+        raise ConversionError("Escolha pelo menos 2 arquivos para juntar.")
+    itens: list[tuple[Path, str]] = []
+    for c in caminhos:
+        try:
+            fmt = detect(c).fmt
+        except DetectionError as e:
+            raise ConversionError(str(e)) from e
+        if fmt != "pdf" and fmt not in IMAGES + ["heic", "avif"]:
+            raise ConversionError(f"{c.name} não é PDF nem imagem ({fmt.upper()}); não dá para juntar.")
+        itens.append((c, fmt))
+    if destino is None:
+        destino = caminhos[0].parent / f"{caminhos[0].stem} + {len(caminhos) - 1}.pdf"
+    destino = caminho_estendido(Path(destino))
+    if destino.suffix.lower() != ".pdf":
+        destino = destino.with_name(destino.name + ".pdf")
+    if any(destino.resolve() == c.resolve() for c in caminhos):
+        raise ConversionError("O PDF de saída não pode ser um dos arquivos que estão sendo juntados.")
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    avisos: list[str] = []
+    tmp = destino.with_name(f"{destino.stem}.tmp-{uuid.uuid4().hex[:8]}.pdf")
+    try:
+        pp.juntar(itens, tmp, avisos)
+        _validar_pdf(tmp)
+        final = _unique_path(destino)
+        os.replace(tmp, final)
+        return ResultadoPaginas([final], _sem_repetidos(avisos))
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def _sem_repetidos(itens: list[str]) -> list[str]:
+    return list(dict.fromkeys(itens))

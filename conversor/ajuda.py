@@ -118,6 +118,18 @@ def secoes(sistema: str | None = None) -> list[tuple[str, list[tuple[str, str]]]
                   + " Detalhes em docs/LICENCAS.md na página do projeto."),
         ("texto", f"Página do projeto: {PAGINA}"),
     ]
+    paginas_pdf = [
+        ("titulo", "Separar e juntar PDFs"),
+        ("passo", "Separar: adicione um PDF e clique em \"Separar PDF…\". \"1-3, 4-9, 10-\" gera um "
+                  "PDF para cada intervalo (numa pasta \"<nome> - partes\"); \"Só estas páginas\" com "
+                  "\"2, 5-7\" gera um PDF com elas, nessa ordem. \"8-\" vai até o fim."),
+        ("passo", "Juntar: adicione PDFs e imagens e clique em \"Juntar em um PDF\"; use ↑ e ↓ para a "
+                  "ordem. Cada imagem vira uma página."),
+        ("passo", ("No Finder: Ações Rápidas → Converter com Lotus, e escolha Separar ou Juntar."
+                   if mac else "No Explorer: clique direito num PDF → Converter para → Separar PDF…; "
+                   "com vários selecionados → Juntar em um PDF…")),
+        ("texto", "Os originais não são alterados. PDF com senha precisa de uma cópia sem senha."),
+    ]
     impressao = [
         ("titulo", "Impressão 3D"),
         ("texto", "Todas as medidas em milímetros, o padrão dos fatiadores. STL e OBJ não guardam "
@@ -132,5 +144,5 @@ def secoes(sistema: str | None = None) -> list[tuple[str, list[tuple[str, str]]]
                   "Orca). Se o Lotus avisar que a malha não é fechada, o fatiador costuma repará-la."),
     ]
     return [("Começar", comecar), ("Formatos", [("titulo", "O que converte")] + _formatos()),
-            ("Impressão 3D", impressao), ("Painel", painel), ("Ação Rápida" if mac else "Botão direito", menu),
+            ("PDF", paginas_pdf), ("Impressão 3D", impressao), ("Painel", painel), ("Ação Rápida" if mac else "Botão direito", menu),
             ("Problemas", problemas), ("Privacidade", privacidade), ("Sobre", sobre)]

@@ -23,7 +23,7 @@ atualiza pelo próprio app (*Ferramentas → Procurar atualização…*).
 | Área | Conversões |
 |---|---|
 | **Imagens** | PNG, JPG, WEBP, BMP, GIF, TIFF, ICO e AVIF entre si e para PDF; **fotos do iPhone (HEIC/HEIF)** para todas elas (o Lotus lê HEIC, não grava) |
-| **PDF** | Para PNG/JPG (uma imagem por página) e para TXT — **inclusive PDF escaneado**, lido por OCR do próprio Windows/Mac, sem internet |
+| **PDF** | Para PNG/JPG (uma imagem por página) e para TXT — **inclusive PDF escaneado**, lido por OCR do próprio Windows/Mac, sem internet. **Separar** (um PDF por intervalo, ou só as páginas escolhidas) e **juntar** vários PDFs e imagens num PDF, na ordem que você escolher |
 | **Word** | Sem Word: DOCX → TXT/Markdown/HTML; TXT/Markdown/HTML → DOCX (com estilos de título); DOCX → PDF simples. Com o Word (Windows): DOCX, DOC, RTF e ODT entre si, PDF idêntico ao Word, XPS e PDF → DOCX. No Mac: DOCX, DOC, RTF e ODT pelo `textutil` do macOS |
 | **PowerPoint** | Sem PowerPoint: PPTX → TXT/Markdown (texto e notas). Com o PowerPoint (Windows): PPTX, PPT e ODP entre si, PDF e uma imagem por slide |
 | **Planilhas e dados** | CSV, JSON e XLSX entre si; XLSX/CSV/JSON → HTML, Markdown e PDF para ler e imprimir (todas as abas, vírgula decimal, datas dd/mm/aaaa) |
@@ -44,6 +44,12 @@ arquivos sobre o ícone do Lotus), escolha em *Converter para* e clique em
 *Converter*. O menu só mostra formatos que servem para **todos** os arquivos
 adicionados; quando um arquivo não tem conversão, a coluna *Situação* diz o
 motivo.
+
+**Separar e juntar PDFs.** Na janela, *Separar PDF…* (ex.: `1-3, 4-9, 10-`
+gera um PDF por intervalo; ou "só estas páginas", ex.: `2, 5-7`) e *Juntar em
+um PDF* (PDFs e imagens da lista, com ↑↓ para a ordem). Também no botão
+direito: num PDF, *Separar PDF…*; com vários PDFs/imagens selecionados,
+*Juntar em um PDF…*. No Mac, pela Ação Rápida. Os originais não são alterados.
 
 **2. Clique direito no arquivo.**
 - **Windows:** *Converter para* → formato (ou *Escolher formato…*). No
@@ -84,6 +90,9 @@ selecionados no Finder…* — que funciona sem a permissão de Acessibilidade.
 conversor-cli.exe foto.png planilha.csv --para pdf
 conversor-cli.exe logo.svg --para stl --espessura 3 --largura 50
 conversor-cli.exe foto.jpg --para stl --modo litofania
+conversor-cli.exe contrato.pdf --separar "1-3, 4-"
+conversor-cli.exe contrato.pdf --extrair "2, 5-7"
+conversor-cli.exe capa.jpg contrato.pdf anexo.pdf --juntar final.pdf
 conversor-cli.exe --listar
 ```
 

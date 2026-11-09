@@ -30,6 +30,10 @@ VERB = "Lotus.Converter"
 CLASSES_ROOT = r"Software\Classes"
 MENU_LABEL = "Converter para"
 CHOOSER_LABEL = "Escolher formato…"
+SEPARAR_LABEL = "Separar PDF…"
+JUNTAR_LABEL = "Juntar em um PDF…"
+# O que engine.juntar_pdf aceita: PDF e imagens (cada imagem vira uma página).
+JUNTAVEIS = {"pdf", "png", "jpg", "webp", "bmp", "gif", "tiff", "ico", "heic", "avif"}
 
 
 @dataclass
@@ -83,6 +87,16 @@ def build_entries(launcher: list[str] | None = None) -> list[Entry]:
             entries.append(
                 Entry(rf"{sub}\command", {"": f'{base_cmd} --menu-converter {target} "%1"'})
             )
+        if fmt == "pdf":
+            sep = rf"{root}\shell\96_separar"
+            entries.append(Entry(sep, {"MUIVerb": SEPARAR_LABEL}))
+            entries.append(Entry(rf"{sep}\command", {"": f'{base_cmd} --menu-separar "%1"'}))
+        if fmt in JUNTAVEIS:
+            # "Player": com vários arquivos selecionados o Explorer chama um
+            # processo por arquivo; agrupar.py os reúne numa janela só.
+            jun = rf"{root}\shell\97_juntar"
+            entries.append(Entry(jun, {"MUIVerb": JUNTAR_LABEL, "MultiSelectModel": "Player"}))
+            entries.append(Entry(rf"{jun}\command", {"": f'{base_cmd} --menu-juntar "%1"'}))
         chooser = rf"{root}\shell\99_escolher"
         entries.append(Entry(chooser, {"MUIVerb": CHOOSER_LABEL}))
         entries.append(Entry(rf"{chooser}\command", {"": f'{base_cmd} --menu-escolher "%1"'}))

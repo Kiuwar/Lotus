@@ -55,6 +55,41 @@ def _auto_repair_menu() -> None:
         get_logger().exception("falha no reparo automático do menu")
 
 
+def _menu_pdf(acao: str, arquivos: list[str]) -> int:
+    """Botão direito / Ação Rápida / painel: abre a janela de Separar ou Juntar."""
+    import tkinter as tk
+
+    if acao == "--menu-juntar" and len(arquivos) == 1:
+        # Seleção múltipla do Explorer: um processo por arquivo; só o 1º segue.
+        from conversor import agrupar
+
+        reunidos = agrupar.reunir(arquivos[0])
+        if reunidos is None:
+            return 0
+        arquivos = reunidos
+    if not arquivos:
+        return 2
+    from conversor.ui.janela_pdf import JanelaJuntar, JanelaSeparar
+
+    root = tk.Tk()
+    root.withdraw()
+    if acao == "--menu-separar":
+        janela = JanelaSeparar(root, arquivos[0])
+    else:
+        if len(arquivos) < 2:
+            _show("Selecione 2 ou mais PDFs ou imagens e escolha \"Juntar em um PDF\".")
+            root.destroy()
+            return 0
+        janela = JanelaJuntar(root, arquivos)
+    janela.bind("<Destroy>", lambda e: root.after_idle(root.destroy) if e.widget is janela else None, add="+")
+    root.mainloop()
+    if janela.resultado:
+        from conversor.menu import open_folder
+
+        open_folder(janela.resultado.saidas[0])
+    return 0
+
+
 def dispatch(argv: list[str]) -> int:
     global _silencioso
     if "--silencioso" in argv:  # usado pelo instalador: sem caixas de mensagem
@@ -73,6 +108,9 @@ def dispatch(argv: list[str]) -> int:
         from conversor.menu import quick_convert
 
         return quick_convert(argv[2:], argv[1])
+
+    if argv and argv[0] in ("--menu-separar", "--menu-juntar"):
+        return _menu_pdf(argv[0], argv[1:])
 
     if argv and argv[0] == "--menu-escolher":
         from conversor.menu import choose

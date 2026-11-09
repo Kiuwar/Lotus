@@ -177,10 +177,39 @@ class Chooser(ttk.Frame):
         self.status.grid(row=next_row + 2, column=0, columnspan=self.COLUMNS, sticky="w", pady=(10, 0))
         bar = ttk.Frame(self)
         bar.grid(row=next_row + 3, column=0, columnspan=self.COLUMNS, sticky="e", pady=(10, 0))
+        self.acoes_pdf(bar, formats)
         self.open_btn = ttk.Button(bar, text="Abrir pasta", state="disabled", command=self._open)
         self.open_btn.pack(side="left", padx=4)
         ttk.Button(bar, text="Fechar", command=top.destroy).pack(side="left")
         top.bind("<Escape>", lambda _e: top.destroy())
+
+    def acoes_pdf(self, bar, formats: list[str]) -> None:
+        """Separar (1 PDF) e Juntar (2+ PDFs/imagens): também para a Ação Rápida do Mac."""
+        from conversor.shell import JUNTAVEIS
+
+        if not formats or len(formats) != len(self.paths):
+            return
+        if formats == ["pdf"]:
+            ttk.Button(bar, text="Separar PDF…", command=self._separar).pack(side="left", padx=4)
+        elif len(formats) >= 2 and all(f in JUNTAVEIS for f in formats):
+            ttk.Button(bar, text="Juntar em um PDF…", command=self._juntar).pack(side="left", padx=4)
+
+    def _separar(self) -> None:
+        from conversor.ui.janela_pdf import JanelaSeparar
+
+        JanelaSeparar(self.winfo_toplevel(), self.paths[0], self._pdf_pronto)
+
+    def _juntar(self) -> None:
+        from conversor.ui.janela_pdf import JanelaJuntar
+
+        JanelaJuntar(self.winfo_toplevel(), list(self.paths), self._pdf_pronto)
+
+    def _pdf_pronto(self, r) -> None:
+        nomes = ", ".join(p.name for p in r.saidas[:3]) + ("…" if len(r.saidas) > 3 else "")
+        texto = f"Pronto: {nomes}" + ("".join(f"\nAviso: {a}" for a in r.avisos))
+        self.status.configure(text=texto, foreground="")
+        self._saida_pdf = r.saidas[0]
+        self.open_btn.configure(state="normal")
 
     def start(self, target: str) -> None:
         if self.worker and self.worker.is_alive():
@@ -210,6 +239,8 @@ class Chooser(ttk.Frame):
 
     def _open(self) -> None:
         done = [o.result.output for o in self.outcomes if o.result]
+        if getattr(self, "_saida_pdf", None):
+            done.insert(0, self._saida_pdf)
         if done:
             open_folder(done[0])
 

@@ -58,3 +58,7 @@ def explain(exc: BaseException, src: Path | None = None) -> str:
         return f"{name} tem caracteres que não puderam ser lidos ({exc.reason})."
     msg = str(exc) or exc.__class__.__name__
     return f"Falha ao converter {name}: {msg}. Detalhes técnicos foram gravados no log."
+
+
+class ConversaoPaginasErro(Exception):
+    """Erro de separar/juntar PDF que a pessoa resolve (intervalo, senha). Já em português."""
