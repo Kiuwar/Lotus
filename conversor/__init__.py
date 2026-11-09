@@ -1,3 +1,3 @@
 """Lotus: conversor de arquivos offline para Windows e macOS."""
 
-__version__ = "0.10.0"
+__version__ = "0.10.1"

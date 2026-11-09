@@ -24,9 +24,13 @@ SENHA = (
 def _abrir_pdfium(src: Path):
     import pypdfium2 as pdfium
 
+    # Aberto pelo Python (não pelo caminho): o pdfium no Windows não aceita
+    # caminho longo (\\?\) e, assim, a mensagem de erro não culpa o arquivo errado.
+    arquivo = open(src, "rb")
     try:
-        return pdfium.PdfDocument(str(src))
+        return pdfium.PdfDocument(arquivo, autoclose=True)
     except pdfium.PdfiumError as e:
+        arquivo.close()
         if "password" in str(e).lower():
             raise ConversionError(SENHA.format(nome=src.name)) from e
         raise ConversionError(f"{src.name} não pôde ser aberto como PDF ({e}).") from e

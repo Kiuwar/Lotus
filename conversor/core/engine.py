@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +21,23 @@ from conversor.core import registry, validate
 from conversor.core.detect import DetectionError, detect, normalize_ext
 from conversor.core.errors import explain
 from conversor.logs import get_logger
+
+
+LIMITE_CAMINHO = 200  # MAX_PATH é 260; a saída acrescenta pasta temporária e nome da página
+
+
+def caminho_estendido(p: Path, plataforma: str | None = None) -> Path:
+    """No Windows, caminhos longos ganham o prefixo \\\\?\\ (aceita até ~32 mil
+    caracteres). Sem ele, gravar em pastas fundas (ex.: OneDrive) falha com
+    "arquivo não encontrado" mesmo com o arquivo lá."""
+    plataforma = plataforma or sys.platform
+    s = str(p)
+    if plataforma != "win32" or s.startswith("\\\\?\\") or len(s) < LIMITE_CAMINHO:
+        return p
+    s = os.path.abspath(s) if plataforma == sys.platform else s
+    if s.startswith("\\\\"):
+        return Path("\\\\?\\UNC\\" + s[2:])
+    return Path("\\\\?\\" + s)
 
 
 class ConversionError(Exception):
@@ -105,7 +123,7 @@ def convert_file(
     overwrite: bool = False,
     options: dict | None = None,
 ) -> Result:
-    src = Path(src)
+    src = caminho_estendido(Path(src))
     target = normalize_ext(target)
     options = dict(options or {})
 
@@ -136,7 +154,7 @@ def convert_file(
             f"ausente. {conv.notes}"
         )
 
-    out_dir = Path(out_dir) if out_dir else src.parent
+    out_dir = caminho_estendido(Path(out_dir) if out_dir else src.parent)
     final = out_dir / f"{src.stem}.{target}"
     if final.resolve() == src.resolve():
         raise ConversionError("A saída coincide com o arquivo de origem.")
