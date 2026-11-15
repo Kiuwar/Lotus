@@ -427,6 +427,17 @@ Erros pegos antes da versão:
   disco (o 1º processo é o dono). Testado com relógio simulado; o comportamento
   real do Explorer é teste manual.
 
+## 4.11. Versão 0.11.1: PDF → DOCX com "código" no lugar do texto
+
+Relato real: o DOCX saiu com os bytes do PDF ("%PDF-1.4 … obj … endobj")
+como texto. O Word abriu o PDF como arquivo de texto (não usou o PDF Reflow)
+e o validador aceitou, porque só conferia ZIP/XML. Causa exata no Word não
+reproduzida (sem Office no CI); suspeitas: extensão ".PDF" maiúscula, caminho
+longo ou bloqueio de PDF na Central de Confiabilidade. Correções:
+`validate._docx_com_bytes_de_pdf` (nunca entregar isso), cópia `entrada.pdf`
+num temporário curto antes de abrir no Word, conferência de que o DOCX tem as
+palavras do PDF e plano B só com o texto do PDF (pdfium), com aviso.
+
 ## 5. Limitações conhecidas (não implementadas de propósito)
 
 - **DOCX/XLSX/PPTX → PDF com layout fiel:** exige Microsoft Word/Office

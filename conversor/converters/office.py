@@ -299,10 +299,112 @@ def documento_para_texto(src: Path, dst: Path, options: dict) -> None:
 
 @register(["pdf"], ["docx"], category="Word", notes=NOTES, available=word_disponivel)
 def pdf_para_docx(src: Path, dst: Path, options: dict) -> None:
-    _converter_com_word(src.resolve(), dst.resolve(), WD_FORMAT_DOCX)
-    options.setdefault("_warnings", []).append(
-        f"{src.name}: o Word reconstrói o PDF como texto editável; o layout pode mudar. Confira o documento."
-    )
+    import shutil
+    import tempfile
+
+    avisos = options.setdefault("_warnings", [])
+    problema = None
+    # Cópia com nome curto e extensão minúscula: o Word escolhe o conversor
+    # sozinho e, no relato da 0.11.0 ("….PDF", caminho longo), abriu o PDF como
+    # texto. O original não é tocado (regra 6).
+    with tempfile.TemporaryDirectory(prefix="lotus-") as tmp:
+        copia = Path(tmp) / "entrada.pdf"
+        shutil.copyfile(src, copia)
+        try:
+            _converter_com_word(copia, dst.resolve(), WD_FORMAT_DOCX)
+            problema = conferir_pdf_docx(src, dst)
+        except ConversionError as e:
+            problema = str(e)
+    if problema is None:
+        avisos.append(f"{src.name}: o Word reconstrói o PDF como texto editável; "
+                      "o layout pode mudar. Confira o documento.")
+        return
+    get_logger().warning("PDF → DOCX pelo Word falhou (%s); usando o texto do PDF", problema)
+    pdf_para_docx_sem_word(src, dst, options)
+    avisos.append(
+        f"{src.name}: o Word não converteu este PDF ({problema}). O DOCX foi feito só com o "
+        "TEXTO do PDF: layout e imagens não foram mantidos. Se o Word bloqueia PDFs, veja em "
+        "Arquivo → Opções → Central de Confiabilidade → Configurações de Bloqueio de Arquivo.")
+
+
+def _palavras(texto: str) -> set[str]:
+    import re
+
+    return {p.lower() for p in re.findall(r"\w{4,}", texto)}
+
+
+def texto_do_pdf(src: Path) -> list[str]:
+    """Texto por página pelo pdfium (melhor ordem de leitura que o pypdf)."""
+    from conversor.converters.pdf import _abrir_pdfium
+
+    doc = _abrir_pdfium(src)
+    try:
+        paginas = []
+        for i in range(len(doc)):
+            pagina = doc[i]
+            try:
+                tp = pagina.get_textpage()
+                paginas.append(tp.get_text_range())
+                tp.close()
+            finally:
+                pagina.close()
+        return paginas
+    finally:
+        doc.close()
+
+
+def conferir_pdf_docx(src: Path, dst: Path) -> str | None:
+    """None se o DOCX é um documento de verdade com o texto do PDF."""
+    from conversor.core import validate
+
+    problema = validate.check(dst, "docx")
+    if problema:
+        return problema
+    do_pdf = _palavras(" ".join(texto_do_pdf(src)))
+    if len(do_pdf) < 5:
+        return None  # PDF escaneado/sem texto: não há o que comparar
+    comuns = do_pdf & _palavras(validate.docx_texto(dst))
+    if len(comuns) < max(3, len(do_pdf) // 5):
+        return "o DOCX não tem o texto do PDF"
+    return None
+
+
+def paragrafos(texto_pagina: str) -> list[str]:
+    """Linhas do PDF → parágrafos: junta linhas quebradas pela largura da página."""
+    linhas = [l.strip() for l in texto_pagina.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    maior = max((len(l) for l in linhas), default=0)
+    saida: list[str] = []
+    atual = ""
+    for linha in linhas:
+        if not linha:
+            if atual:
+                saida.append(atual)
+                atual = ""
+            continue
+        atual = f"{atual} {linha}".strip() if atual else linha
+        fim_de_frase = linha[-1] in ".:;!?)" or linha.isupper()
+        if fim_de_frase or len(linha) < 0.6 * maior:
+            saida.append(atual)
+            atual = ""
+    if atual:
+        saida.append(atual)
+    return saida
+
+
+def pdf_para_docx_sem_word(src: Path, dst: Path, options: dict) -> None:
+    from conversor.converters.docx_escrita import escrever_docx
+    from conversor.converters.office_texto import Bloco, Trecho
+
+    blocos = []
+    for n, pagina in enumerate(texto_do_pdf(src)):
+        if n:
+            blocos.append(Bloco("par", []))
+        blocos.extend(Bloco("par", [Trecho(p)]) for p in paragrafos(pagina))
+    if not any(b.trechos for b in blocos):
+        raise ConversionError(
+            f"O Word não converteu {src.name} e o PDF não tem texto selecionável (é escaneado?). "
+            "Como resolver: converta para TXT (o Lotus lê por OCR) ou abra o PDF no Word.")
+    escrever_docx(blocos, dst, src.stem)
 
 
 @register(["pptx", "ppt", "odp"], ["pdf", "pptx", "ppt", "odp"],

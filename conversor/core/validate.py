@@ -79,7 +79,7 @@ def check(path: Path, fmt: str) -> str | None:
         # partes XML precisam ser XML bem formado (senão o Word recusa abrir).
         if sniff(path) != "docx":
             return "não é um DOCX válido (falta word/document.xml)"
-        return _check_docx_xml(path)
+        return _check_docx_xml(path) or _docx_com_bytes_de_pdf(path)
 
     if fmt in {"html", "txt", "md"}:
         try:
@@ -132,6 +132,27 @@ def _check_docx_xml(path: Path) -> str | None:
     except Exception as e:
         return f"DOCX com XML inválido: {e}"
     return None if corpo is not None else "DOCX sem corpo (w:body)"
+
+
+def docx_texto(path: Path, limite: int = 200_000) -> str:
+    """Texto visível do DOCX (só w:t), para conferir o conteúdo."""
+    import re
+    import zipfile
+
+    with zipfile.ZipFile(path) as z:
+        xml = z.read("word/document.xml")[: limite * 4].decode("utf-8", "replace")
+    pedacos = re.findall(r"<w:t(?:\s[^>]*)?>([^<]*)</w:t>", xml)
+    return " ".join(pedacos)[:limite]
+
+
+def _docx_com_bytes_de_pdf(path: Path) -> str | None:
+    """Relato real (0.11.0): o Word abriu um PDF como TEXTO e salvou o código do
+    PDF ("%PDF-1.4 … obj … endobj") dentro do DOCX. Isso não é um documento."""
+    texto = docx_texto(path, 20_000)
+    marcas = texto.count(" obj") + texto.count("endobj") + texto.count("endstream")
+    if "%PDF-" in texto[:300] or marcas >= 20:
+        return "o DOCX contém o código interno de um PDF em vez do texto"
+    return None
 
 
 MODELOS_3D = {"stl", "obj", "3mf", "ply", "off", "glb"}
